@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 export default function LoginPage() {
@@ -7,6 +7,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    // Auto-redirect if already logged in
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.user) window.location.href = '/vault.html'
+        else setChecking(false)
+      })
+      .catch(() => setChecking(false))
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -30,6 +42,12 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  if (checking) return (
+    <html lang="en"><head><style>{`body{background:#080808;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}`}</style></head>
+    <body><div style={{width:'28px',height:'28px',border:'2px solid rgba(255,255,255,0.1)',borderTopColor:'#4ade80',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}></div>
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></body></html>
+  )
 
   return (
     <html lang="en">

@@ -238,6 +238,37 @@ export async function GET() {
       .sort((a, b) => b.amt - a.amt)
     const generated = new Date().toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
+    // Build net worth history from transactions (last 12 months)
+    // Strategy: start from current netWorth and subtract monthly net cash flow to go backwards
+    const nwHistory: number[] = [];
+    const nwLabels: string[] = [];
+    const nowDate = new Date();
+
+    // Compute monthly net flow for each of the last 12 months
+    const monthlyFlows: number[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - i, 1);
+      const startOfMonth = d.toISOString().split('T')[0];
+      const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+      const monthTxns = rawTxns.filter((t: any) => (t.date || '') >= startOfMonth && (t.date || '') <= endOfMonth);
+      const monthNet = monthTxns.reduce((s: number, t: any) => {
+        // Plaid: positive = money out (debit), negative = money in (credit)
+        const displayAmt = t.amount > 0 ? -Math.abs(t.amount) : Math.abs(t.amount);
+        return s + displayAmt;
+      }, 0);
+      monthlyFlows.push(monthNet);
+      nwLabels.push(d.toLocaleString('fr-CA', { month: 'short', year: '2-digit' }));
+    }
+
+    // Reconstruct history: walk backwards from current netWorth
+    // nwHistory[11] = current, nwHistory[10] = current - last month flow, etc.
+    const tempHistory: number[] = new Array(12);
+    tempHistory[11] = netWorth;
+    for (let i = 10; i >= 0; i--) {
+      tempHistory[i] = tempHistory[i + 1] - monthlyFlows[i + 1];
+    }
+    nwHistory.push(...tempHistory);
+
     return NextResponse.json({
       netWorth: Math.round(netWorth * 100) / 100,
       totalAssets: Math.round(totalAssets * 100) / 100,
@@ -245,7 +276,7 @@ export async function GET() {
       income: Math.round(income * 100) / 100,
       spending: Math.round(spending * 100) / 100,
       cashFlow: Math.round(cashFlow * 100) / 100,
-      generated, netWorthHistory: [netWorth], monthLabels: ['Now'],
+      generated, netWorthHistory: nwHistory, monthLabels: nwLabels,
       accounts, txns: txns.slice(0, 500), budget: [],
       catLabels: categorySpending.map(c => c.cat),
       catAmounts: categorySpending.map(c => c.amt),
