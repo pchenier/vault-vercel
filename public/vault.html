@@ -806,7 +806,8 @@ function initDashCharts(){
     chartRegistry.nw=new Chart(nwCtx,{
       type:'line',
       data:{labels:D.monthLabels,datasets:[{data:D.netWorthHistory,borderColor:'#4ade80',borderWidth:1.5,fill:true,backgroundColor:grad,tension:.4,pointRadius:0,pointHoverRadius:4}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1a1a',borderColor:'rgba(74,222,128,.2)',borderWidth:1,padding:10,bodyColor:'#f4f4f5',callbacks:{label:ctx=>' '+fmt(ctx.parsed.y,0)}}},scales:{x:{display:true,grid:{display:false},border:{display:false},ticks:{color:'#52525b',font:{size:9},maxTicksLimit:6}},y:{display:true,grid:{color:'rgba(255,255,255,0.04)'},border:{display:false},ticks:{color:'#52525b',font:{size:9},maxTicksLimit:4,callback:v=>fmt(v,0)}}}}\n    });
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1a1a',borderColor:'rgba(74,222,128,.2)',borderWidth:1,padding:10,bodyColor:'#f4f4f5',callbacks:{label:ctx=>' '+fmt(ctx.parsed.y,0)}}},scales:{x:{display:true,grid:{display:false},border:{display:false},ticks:{color:'#52525b',font:{size:9},maxTicksLimit:6}},y:{display:true,grid:{color:'rgba(255,255,255,0.04)'},border:{display:false},ticks:{color:'#52525b',font:{size:9},maxTicksLimit:4,callback:v=>fmt(v,0)}}}}
+    });
   }
   const catCtx=document.getElementById('catChart')?.getContext('2d');
   if(catCtx){
