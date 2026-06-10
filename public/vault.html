@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://unpkg.com/feather-icons/dist/feather.min.js"></script>
+<script src="/chart.min.js"></script>
+<script src="/feather.min.js"></script>
 <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 <style>
 :root {
@@ -289,7 +289,9 @@ button{font-family:var(--font)}
 .cal-cell.today{background:var(--bg4);color:var(--text);outline:1px solid var(--border)}
 .cal-cell.has-event::after{content:'';position:absolute;bottom:4px;width:4px;height:4px;border-radius:50%;background:var(--green)}
 .cal-cell.empty{background:transparent;cursor:default}
-.cal-day-hdr{font-size:10px;font-weight:600;color:var(--text4);text-align:center;padding:4px 0;text-transform:uppercase}
+.cal-day-hdr{font-size:10px;font-weight:600;color:var(--text4);text-align:center;padding:4px 0;text-transform:uppercase;letter-spacing:.04em}
+.cal-tpl-pill{padding:5px 10px;border-radius:16px;font-size:11px;font-family:var(--font);cursor:pointer;background:var(--bg4);border:1px solid var(--border);color:var(--text3);transition:all .12s}
+.cal-tpl-pill:hover,.cal-tpl-pill.active{background:var(--text);border-color:var(--text);color:var(--bg)}
 .cal-ev-chip{display:block;font-size:9.5px;font-weight:600;padding:2px 5px;border-radius:4px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.4}
 .cal-dot-row{display:flex;gap:2px;flex-wrap:wrap;margin-top:auto;padding-top:2px}
 
@@ -327,6 +329,17 @@ button{font-family:var(--font)}
 /* ── FADE ── */
 .fade-in{animation:fi .18s ease}
 @keyframes fi{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── DASH GRID ── */
+.dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;align-items:start}
+.dash-widget{position:relative;grid-column:auto}
+.dash-widget-full{grid-column:1/-1}
+.dash-wobble{animation:wobble 0.5s ease infinite alternate}
+@keyframes wobble{0%{transform:rotate(-0.5deg)}100%{transform:rotate(0.5deg)}}
+.dash-del-btn{position:absolute;top:-8px;left:-8px;z-index:10;width:22px;height:22px;border-radius:50%;background:#ef4444;border:2px solid var(--bg);color:#fff;font-size:14px;font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.dash-size-btn{position:absolute;top:-8px;right:-8px;z-index:10;width:22px;height:22px;border-radius:50%;background:var(--bg4);border:2px solid var(--border);color:var(--text3);font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.dash-placeholder{border-radius:var(--r)}
 
 /* ── CHART WRAPPERS ── */
 .chart-wrap{position:relative;width:100%}
@@ -370,8 +383,7 @@ button{font-family:var(--font)}
 <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
 <aside class="sidebar">
   <div class="logo">
-    <div class="logo-mark">V</div>
-    <span class="logo-name">Vault</span>
+    <img src="/logo.svg" alt="Vault" style="height:28px;width:auto">
   </div>
 
   <nav class="nav-group">
@@ -431,10 +443,10 @@ button{font-family:var(--font)}
       <svg class="ico" data-feather="settings"></svg> Settings
     </div>
     <div class="user-row">
-      <div class="avatar">AM</div>
+      <div class="avatar" id="sidebar-avatar">PO</div>
       <div class="user-info">
-        <div class="user-name">Alex Martin</div>
-        <div class="user-plan">Pro plan</div>
+        <div class="user-name" id="sidebar-username">po@vault.local</div>
+        <div class="user-plan">Vault</div>
       </div>
     </div>
   </div>
@@ -512,7 +524,7 @@ function navigate(page){
   }
   Object.keys(chartRegistry).forEach(destroyChart);
   requestAnimationFrame(()=>{
-    if(page==='dashboard')initDashCharts();
+    if(page==='dashboard'){ initDashCharts(); if(_dashEditMode) _initDashDrag(); }
     if(page==='savings')initSavingsChart();
     if(page==='investments')initInvCharts();
     if(page==='crypto')initCryptoCharts();
@@ -542,260 +554,282 @@ function renderPage(p){
 }
 
 // ═══════════════════════════ DASHBOARD ═══════════════════════════
-function pgDashboard(){
-  // Apply overrides + exclude P2P/self transfers from all calculations
-  const allTxns = applyOverrides(applyRules(D.txns));
-  const txns = allTxns.filter(t => !EXCLUDED_CATS.has(t.cat));
+const WIDGET_REGISTRY = {
+  'metrics':     { label:'Métriques',      desc:'Revenus, dépenses, cash flow', icon:'📊', cols:2 },
+  'nw-chart':    { label:'Net Worth',       desc:'Graphique 12 mois',            icon:'📈', cols:1 },
+  'cat-chart':   { label:'Catégories',      desc:'Dépenses par catégorie',       icon:'🥧', cols:1 },
+  'recent-txns': { label:'Transactions',    desc:'Dernières transactions',       icon:'💳', cols:1 },
+  'budget':      { label:'Budget',          desc:'Suivi des limites',            icon:'🎯', cols:1 },
+  'bills':       { label:'Factures',        desc:'Prochaines factures',          icon:'📅', cols:1 },
+  'accounts':    { label:'Comptes',         desc:'Tous tes comptes',             icon:'🏦', cols:2 },
+  'habits':      { label:'Habitudes',       desc:'Streaks et completion',        icon:'✅', cols:1 },
+  'cal-events':  { label:'Agenda',          desc:'Prochains événements',         icon:'🗓️', cols:1 },
+};
+const DASH_LAYOUT_KEY = 'vault_dash_layout';
+const DEFAULT_LAYOUT = [
+  {id:'metrics',     enabled:true,  cols:2},
+  {id:'nw-chart',    enabled:true,  cols:1},
+  {id:'cat-chart',   enabled:true,  cols:1},
+  {id:'recent-txns', enabled:true,  cols:1},
+  {id:'budget',      enabled:true,  cols:1},
+  {id:'bills',       enabled:true,  cols:1},
+  {id:'habits',      enabled:true,  cols:1},
+  {id:'accounts',    enabled:false, cols:2},
+  {id:'cal-events',  enabled:false, cols:1},
+];
+function getDashLayout(){
+  try{
+    const s=localStorage.getItem(DASH_LAYOUT_KEY);
+    if(!s) return DEFAULT_LAYOUT.map(w=>({...w}));
+    const l=JSON.parse(s);
+    Object.keys(WIDGET_REGISTRY).forEach(id=>{ if(!l.find(w=>w.id===id)) l.push({id,enabled:false,cols:WIDGET_REGISTRY[id].cols}); });
+    return l;
+  }catch(e){ return DEFAULT_LAYOUT.map(w=>({...w})); }
+}
+function saveDashLayout(l){ localStorage.setItem(DASH_LAYOUT_KEY, JSON.stringify(l)); }
 
-  const income   = txns.filter(t=>t.amt>0).reduce((s,t)=>s+t.amt,0) || D.income;
-  const spending = txns.filter(t=>t.amt<0).reduce((s,t)=>s+Math.abs(t.amt),0) || D.spending;
-  const cashFlow = income - spending;
-
-  const txn5 = allTxns.slice(0,5).map(t=>{
-    const excl = EXCLUDED_CATS.has(t.cat);
-    return`
-    <div class="txn" style="${excl?'opacity:.4':''}">
-      <div class="txn-ico">${t.ico||'📂'}</div>
-      <div class="txn-info">
-        <div class="txn-name">${t.name}</div>
-        <div class="txn-sub">${t.cat} · ${t.acc}</div>
-      </div>
-      <div class="txn-right">
-        <div class="txn-amt ${t.amt<0?'debit':'credit'}">${fmt(t.amt,2)}</div>
-        <div class="txn-date">${t.date}</div>
-      </div>
-    </div>`;}).join('');
-
-  const budget3=(typeof getBudgetItems==='function' ? getBudgetItems().filter(b=>!b.hidden && (b.lim>0||b.spent>0)).slice(0,5) : D.budget.slice(0,5)).map(b=>{
-    const pct=Math.min((b.spent/b.lim)*100,100);
-    const cls=pct>=100?'over':pct>=85?'warn':'ok';
-    return`<div class="budget-item">
-      <div class="budget-row">
-        <div class="budget-cat"><span class="budget-cat-ico">${b.ico}</span>${b.cat}</div>
-        <div class="budget-nums">${fmt(b.spent,0)} <span style="color:var(--text4)">/ ${fmt(b.lim,0)}</span></div>
-      </div>
-      <div class="pbar"><div class="pfill ${cls}" style="width:${pct}%"></div></div>
-    </div>`;}).join('');
-
-  const bills=D.bills.slice(0,4).map(b=>`
-    <div class="bill-row">
-      <div class="bill-date-box"><div class="bill-day">${b.day}</div><div class="bill-mo">${b.mo}</div></div>
-      <div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--text)">${b.name}</div></div>
-      <div style="font-size:13px;color:var(--text2);font-variant-numeric:tabular-nums">${fmt(b.amt,2)}</div>
-    </div>`).join('');
-
-  const habitSnap=D.habits.slice(0,3).map(h=>{
-    const done=h.done.filter(x=>x).length;
+// ── Widget renderers ──
+function _wMetrics(){
+  const txns=applyOverrides(applyRules(D.txns)).filter(t=>!EXCLUDED_CATS.has(t.cat));
+  const income=txns.filter(t=>t.amt>0).reduce((s,t)=>s+t.amt,0)||D.income;
+  const spending=txns.filter(t=>t.amt<0).reduce((s,t)=>s+Math.abs(t.amt),0)||D.spending;
+  const cashFlow=income-spending;
+  return`<div class="metrics-row mb0">
+    <div class="metric"><div class="metric-label">Net Worth</div><div class="metric-val">${fmt(D.netWorth,0)}</div><div class="metric-delta up">▲ Tous comptes</div></div>
+    <div class="metric"><div class="metric-label">Revenus</div><div class="metric-val">${fmt(income,0)}</div><div class="metric-delta flat">Ce mois</div></div>
+    <div class="metric"><div class="metric-label">Dépenses</div><div class="metric-val">${fmt(spending,0)}</div><div class="metric-delta flat">Excl. virements</div></div>
+    <div class="metric"><div class="metric-label">Cash Flow</div><div class="metric-val" style="color:${cashFlow>=0?'var(--green)':'var(--red)'}">${fmt(cashFlow,0)}</div><div class="metric-delta ${cashFlow>=0?'up':'down'}">${cashFlow>=0?'▲ Positif':'▼ Négatif'}</div></div>
+  </div>`;
+}
+function _wNwChart(){
+  return`<div class="card" style="height:100%"><div class="sec-hdr"><span class="sec-title">Net Worth</span><span class="badge b-green">12 mois</span></div><div class="chart-wrap" style="height:160px"><canvas id="nwChart"></canvas></div></div>`;
+}
+function _wCatChart(){
+  return`<div class="card" style="height:100%"><div class="sec-hdr"><span class="sec-title">Catégories</span></div><div class="chart-wrap" style="height:160px"><canvas id="catChart"></canvas></div></div>`;
+}
+function _wRecentTxns(){
+  const rows=applyOverrides(applyRules(D.txns)).slice(0,5).map(t=>{
+    const excl=EXCLUDED_CATS.has(t.cat);
+    return`<div class="txn" style="${excl?'opacity:.4':''}"><div class="txn-ico">${t.ico||'📂'}</div><div class="txn-info"><div class="txn-name">${t.name}</div><div class="txn-sub">${t.cat} · ${t.acc}</div></div><div class="txn-right"><div class="txn-amt ${t.amt<0?'debit':'credit'}">${fmt(t.amt,2)}</div><div class="txn-date">${t.date}</div></div></div>`;
+  }).join('');
+  return`<div class="card" style="height:100%"><div class="sec-hdr"><span class="sec-title">Transactions récentes</span><button class="sec-link" onclick="navigate('transactions')">Voir tout</button></div><div class="txn-list">${rows||'<div style="padding:12px;color:var(--text4);font-size:12px">Aucune</div>'}</div></div>`;
+}
+function _wBudget(){
+  const items=(typeof getBudgetItems==='function'?getBudgetItems().filter(b=>!b.hidden&&(b.lim>0||b.spent>0)).slice(0,5):D.budget.slice(0,5));
+  const rows=items.map(b=>{const pct=Math.min((b.spent/b.lim)*100,100);const cls=pct>=100?'over':pct>=85?'warn':'ok';return`<div class="budget-item"><div class="budget-row"><div class="budget-cat"><span class="budget-cat-ico">${b.ico}</span>${b.cat}</div><div class="budget-nums">${fmt(b.spent,0)} <span style="color:var(--text4)">/ ${fmt(b.lim,0)}</span></div></div><div class="pbar"><div class="pfill ${cls}" style="width:${pct}%"></div></div></div>`;}).join('');
+  return`<div class="card" style="height:100%"><div class="sec-hdr"><span class="sec-title">Budget</span><button class="sec-link" onclick="navigate('budget')">Voir tout</button></div>${rows||'<div style="padding:12px;color:var(--text4);font-size:12px">Aucun budget</div>'}</div>`;
+}
+function _wBills(){
+  const rows=D.bills.slice(0,4).map(b=>`<div class="bill-row"><div class="bill-date-box"><div class="bill-day">${b.day}</div><div class="bill-mo">${b.mo}</div></div><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--text)">${b.name}</div></div><div style="font-size:13px;color:var(--text2);font-variant-numeric:tabular-nums">${fmt(b.amt,2)}</div></div>`).join('');
+  return`<div class="card" style="height:100%"><div class="sec-hdr"><span class="sec-title">Factures</span><button class="sec-link" onclick="navigate('calendar')">Calendrier</button></div>${rows||'<div style="padding:12px;color:var(--text4);font-size:12px">Aucune facture</div>'}</div>`;
+}
+function _wAccounts(){
+  const rows=D.accounts.slice(0,6).map(a=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2)"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:${a.color}22;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${a.color}">${a.init}</div><div><div style="font-size:12.5px;font-weight:500;color:var(--text)">${a.name}</div><div style="font-size:10.5px;color:var(--text4)">${a.type}</div></div></div><div style="font-size:13px;font-weight:600;color:${a.bal>=0?'var(--text)':'var(--red)'};font-variant-numeric:tabular-nums">${fmt(a.bal,2)}</div></div>`).join('');
+  return`<div class="card"><div class="sec-hdr"><span class="sec-title">Comptes</span><button class="sec-link" onclick="navigate('accounts')">Voir tout</button></div>${rows||'<div style="padding:12px;color:var(--text4);font-size:12px">Aucun compte</div>'}</div>`;
+}
+function _wHabits(){
+  const today = new Date();
+  const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const habits = getHabits();
+  const doneCount = habits.filter(h=>h.log&&h.log.includes(todayStr)).length;
+  const rows = habits.slice(0,4).map(h=>{
+    const done = h.log&&h.log.includes(todayStr);
     return`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2)">
       <span style="font-size:13px;color:var(--text)">${h.name}</span>
-      <span class="badge b-yellow">${h.streak}d streak</span>
-    </div>`;}).join('');
+      <span class="badge ${done?'b-green':'b-gray'}">${done?'✓ done':'pending'}</span>
+    </div>`;
+  }).join('');
+  return`<div class="card" style="height:100%"><div class="sec-hdr"><span class="sec-title">Habitudes</span><span class="badge b-${doneCount===habits.length&&habits.length>0?'green':'yellow'}">${doneCount}/${habits.length}</span><button class="sec-link" onclick="navigate('habits')">Voir tout</button></div>${rows||'<div style="padding:12px;color:var(--text4);font-size:12px">Aucune habitude</div>'}</div>`;
+}
+function _wCalEvents(){
+  const now=new Date();
+  const local=(getCalEvents()||[]).filter(e=>new Date(e.date+'T00:00')>=now).slice(0,3).map(e=>({title:(e.ico||'📅')+' '+e.title,sub:e.date+(e.time?' à '+e.time:''),color:'var(--accent)'}));
+  const gcal=(GCAL_EVENTS||[]).filter(e=>new Date(e.start)>=now).slice(0,3).map(e=>({title:e.title,sub:new Date(e.start).toLocaleDateString('fr-CA',{month:'short',day:'numeric'}),color:'#4285f4'}));
+  const all=[...local,...gcal].slice(0,5);
+  const rows=all.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)"><div style="width:3px;height:32px;border-radius:2px;background:${e.color};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.title}</div><div style="font-size:11px;color:var(--text4)">${e.sub}</div></div></div>`).join('');
+  return`<div class="card" style="height:100%"><div class="sec-hdr"><span class="sec-title">Agenda</span><button class="sec-link" onclick="navigate('calendar')">Voir tout</button></div>${rows||'<div style="padding:12px;color:var(--text4);font-size:12px">Aucun événement</div>'}</div>`;
+}
+function _renderWidget(w){
+  const full=w.cols===2;
+  let html='';
+  switch(w.id){
+    case 'metrics':     html=_wMetrics(); break;
+    case 'nw-chart':    html=_wNwChart(); break;
+    case 'cat-chart':   html=_wCatChart(); break;
+    case 'recent-txns': html=_wRecentTxns(); break;
+    case 'budget':      html=_wBudget(); break;
+    case 'bills':       html=_wBills(); break;
+    case 'accounts':    html=_wAccounts(); break;
+    case 'habits':      html=_wHabits(); break;
+    case 'cal-events':  html=_wCalEvents(); break;
+    default: return '';
+  }
+  return`<div class="dash-widget${full?' dash-widget-full':''}" data-id="${w.id}">${html}</div>`;
+}
+
+// ── Edit mode (iPhone-style) ──
+let _dashEditMode = false;
+let _dashDragSrc = null;
+
+function enterDashEdit(){
+  _dashEditMode=true;
+  navigate('dashboard');
+}
+function exitDashEdit(){
+  _dashEditMode=false;
+  navigate('dashboard');
+  showToast('Layout sauvegardé!');
+}
+function resetDashLayout(){
+  saveDashLayout(DEFAULT_LAYOUT.map(w=>({...w})));
+  navigate('dashboard');
+  showToast('Layout réinitialisé');
+}
+function removeDashWidget(id){
+  const l=getDashLayout();
+  const w=l.find(x=>x.id===id);
+  if(w) w.enabled=false;
+  saveDashLayout(l);
+  navigate('dashboard');
+}
+function addDashWidget(id){
+  const l=getDashLayout();
+  const w=l.find(x=>x.id===id);
+  if(w) w.enabled=true;
+  else l.push({id,enabled:true,cols:WIDGET_REGISTRY[id]?.cols||1});
+  saveDashLayout(l);
+  navigate('dashboard');
+}
+function toggleDashWidgetSize(id){
+  const l=getDashLayout();
+  const w=l.find(x=>x.id===id);
+  if(w) w.cols=w.cols===2?1:2;
+  saveDashLayout(l);
+  navigate('dashboard');
+}
+
+function _initDashDrag(){
+  const grid=document.getElementById('dash-grid');
+  if(!grid) return;
+  let dragEl=null, placeholder=null;
+  grid.querySelectorAll('.dash-widget').forEach(el=>{
+    el.setAttribute('draggable','true');
+    el.addEventListener('dragstart',e=>{
+      dragEl=el;
+      placeholder=document.createElement('div');
+      placeholder.className='dash-widget dash-placeholder';
+      placeholder.style.cssText=`height:${el.offsetHeight}px;background:var(--bg3);border:2px dashed var(--border);border-radius:var(--r);opacity:.5;${el.classList.contains('dash-widget-full')?'grid-column:1/-1':''}`;
+      setTimeout(()=>el.style.opacity='0.3',0);
+    });
+    el.addEventListener('dragend',()=>{
+      el.style.opacity='';
+      placeholder?.remove();
+      placeholder=null;
+      // Save new order
+      const ids=[...grid.querySelectorAll('.dash-widget:not(.dash-placeholder)')].map(e=>e.dataset.id);
+      const l=getDashLayout();
+      const enabled=l.filter(w=>w.enabled);
+      const newEnabled=ids.map(id=>enabled.find(w=>w.id===id)).filter(Boolean);
+      const disabled=l.filter(w=>!w.enabled);
+      saveDashLayout([...newEnabled,...disabled]);
+    });
+    el.addEventListener('dragover',e=>{
+      e.preventDefault();
+      if(!dragEl||dragEl===el) return;
+      const r=el.getBoundingClientRect();
+      const mid=r.top+r.height/2;
+      if(e.clientY<mid) grid.insertBefore(placeholder,el);
+      else grid.insertBefore(placeholder,el.nextSibling);
+    });
+    el.addEventListener('drop',e=>{
+      e.preventDefault();
+      if(!dragEl||dragEl===el) return;
+      placeholder?.replaceWith(dragEl);
+    });
+  });
+}
+
+function pgDashboard(){
+  const layout=getDashLayout();
+  const enabled=layout.filter(w=>w.enabled);
+  const disabled=layout.filter(w=>!w.enabled);
+
+  const widgets=enabled.map(w=>{
+    const inner=_renderWidget(w);
+    if(!_dashEditMode) return inner;
+    // Edit mode: wobble + X button + resize toggle
+    const full=w.cols===2;
+    const reg=WIDGET_REGISTRY[w.id];
+    return`<div class="dash-widget${full?' dash-widget-full':''} dash-wobble" data-id="${w.id}" draggable="true">
+      <button onclick="removeDashWidget('${w.id}')" class="dash-del-btn">×</button>
+      <button onclick="toggleDashWidgetSize('${w.id}')" class="dash-size-btn" title="${full?'Réduire':'Agrandir'}">${full?'⊟':'⊞'}</button>
+      ${_renderWidget(w).replace(/^<div class="dash-widget[^>]*>/,'<div style="pointer-events:none;opacity:.7">').replace(/<\/div>$/,'</div>')}
+    </div>`;
+  }).join('');
+
+  const addGrid=_dashEditMode&&disabled.length?`
+  <div style="margin-top:20px">
+    <div style="font-size:11px;font-weight:600;color:var(--text4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Ajouter un widget</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      ${disabled.map(w=>{
+        const reg=WIDGET_REGISTRY[w.id];if(!reg)return'';
+        return`<button onclick="addDashWidget('${w.id}')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:16px">${reg.icon}</div>
+          <div style="font-size:10px;font-weight:500;color:var(--text2);text-align:center;line-height:1.3">${reg.label}</div>
+          <div style="width:16px;height:16px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--bg);font-size:12px;font-weight:700;line-height:1">+</div>
+        </button>`;
+      }).join('')}
+    </div>
+  </div>`:'' ;
 
   return`
-  <div class="metrics-row mb20">
-    <div class="metric">
-      <div class="metric-label">Net Worth</div>
-      <div class="metric-val">${fmt(D.netWorth,0)}</div>
-      <div class="metric-delta up">▲ All accounts</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Monthly Income</div>
-      <div class="metric-val">${fmt(income,0)}</div>
-      <div class="metric-delta flat">This month</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Monthly Spending</div>
-      <div class="metric-val">${fmt(spending,0)}</div>
-      <div class="metric-delta flat">Excl. P2P & transfers</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Cash Flow</div>
-      <div class="metric-val" style="color:${cashFlow>=0?'var(--green)':'var(--red)'}">${fmt(cashFlow,0)}</div>
-      <div class="metric-delta ${cashFlow>=0?'up':'down'}">${cashFlow>=0?'▲ Positive':'▼ Negative'}</div>
-    </div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px">
+    ${_dashEditMode
+      ?`<button onclick="resetDashLayout()" class="btn btn-ghost btn-sm" style="font-size:11px">Réinitialiser</button>
+         <button onclick="exitDashEdit()" class="btn btn-primary btn-sm">Terminé</button>`
+      :`<button onclick="enterDashEdit()" class="btn btn-ghost btn-sm"><svg data-feather="edit-2" style="width:12px;height:12px"></svg> Modifier</button>`
+    }
   </div>
-
-  <div class="g2-1 mb20">
-    <div class="card">
-      <div class="sec-hdr">
-        <span class="sec-title">Net Worth — 12 months</span>
-        <span class="badge b-green">+28.6% YTD</span>
-      </div>
-      <div class="chart-wrap" style="height:180px"><canvas id="nwChart"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="sec-hdr"><span class="sec-title">Spending by Category</span></div>
-      <div class="chart-wrap" style="height:180px"><canvas id="catChart"></canvas></div>
-    </div>
+  <div class="dash-grid" id="dash-grid">
+    ${widgets}
   </div>
-
-  <div class="g2-1 mb20">
-    <div class="card">
-      <div class="sec-hdr">
-        <span class="sec-title">Recent Transactions</span>
-        <button class="sec-link" onclick="navigate('transactions')">View all</button>
-      </div>
-      <div class="txn-list">${txn5}</div>
-    </div>
-    <div>
-      <div class="card mb16">
-        <div class="sec-hdr">
-          <span class="sec-title">Budget</span>
-          <button class="sec-link" onclick="navigate('budget')">View all</button>
-        </div>
-        ${budget3}
-      </div>
-    </div>
-  </div>
-
-  <div class="g2">
-    <div class="card">
-      <div class="sec-hdr">
-        <span class="sec-title">Upcoming Bills</span>
-        <button class="sec-link" onclick="navigate('calendar')">Calendar</button>
-      </div>
-      ${bills}
-    </div>
-    <div class="card">
-      <div class="sec-hdr">
-        <span class="sec-title">Habit Streaks</span>
-        <button class="sec-link" onclick="navigate('habits')">View all</button>
-      </div>
-      ${habitSnap}
-      <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
-        <div style="font-size:28px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums">74%</div>
-        <div><div style="font-size:12px;font-weight:500;color:var(--text2)">Completion rate</div><div style="font-size:11px;color:var(--text3)">Last 30 days</div></div>
-      </div>
-    </div>
-  </div>`;
+  ${addGrid}`;
 }
 
 function initDashCharts(){
+  if(_dashEditMode) return;
   const nwCtx=document.getElementById('nwChart')?.getContext('2d');
   if(nwCtx){
-    const grad=nwCtx.createLinearGradient(0,0,0,180);
-    grad.addColorStop(0,'rgba(74,222,128,0.15)');
+    const grad=nwCtx.createLinearGradient(0,0,0,160);
+    grad.addColorStop(0,'rgba(74,222,128,0.2)');
     grad.addColorStop(1,'rgba(74,222,128,0)');
     chartRegistry.nw=new Chart(nwCtx,{
       type:'line',
-      data:{
-        labels:D.monthLabels,
-        datasets:[{
-          data:D.netWorthHistory,
-          borderColor:'#4ade80',borderWidth:1.5,
-          backgroundColor:grad,fill:true,
-          pointRadius:0,pointHoverRadius:4,
-          tension:0.4
-        }]
-      },
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{
-          backgroundColor:'#1e1e1e',borderColor:'rgba(255,255,255,0.07)',borderWidth:1,
-          titleColor:'#a1a1aa',bodyColor:'#f4f4f5',padding:10,
-          callbacks:{label:ctx=>' '+fmt(ctx.parsed.y,0)}
-        }},
-        scales:{
-          x:{grid:{display:false},border:{display:false},ticks:{color:'#52525b',font:{size:10}}},
-          y:{grid:{color:'rgba(255,255,255,0.04)'},border:{display:false},
-             ticks:{color:'#52525b',font:{size:10},callback:v=>fmt(v,0)}}
-        }
-      }
+      data:{labels:D.monthLabels,datasets:[{data:D.netWorthHistory,borderColor:'#4ade80',borderWidth:1.5,fill:true,backgroundColor:grad,tension:.4,pointRadius:0}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.y,0)}}},scales:{x:{display:false},y:{display:false}}}
     });
   }
-
   const catCtx=document.getElementById('catChart')?.getContext('2d');
   if(catCtx){
-    // Use real budget items (from transactions) if available, else fall back to mock
-    const realBudget = (typeof getBudgetItems==='function') ? getBudgetItems().filter(b=>!b.hidden && b.spent>0).slice(0,6) : [];
-    const labels = realBudget.length ? realBudget.map(b=>b.cat) : (D.catLabels && D.catLabels.length) ? D.catLabels : D.budget.slice(0,5).map(b=>b.cat);
-    const amounts = realBudget.length ? realBudget.map(b=>b.spent) : (D.catAmounts && D.catAmounts.length) ? D.catAmounts : D.budget.slice(0,5).map(b=>b.spent);
-    chartRegistry.cat=new Chart(catCtx,{
-      type:'doughnut',
-      data:{
-        labels:labels,
-        datasets:[{
-          data:amounts,
-          backgroundColor:['#4ade80','#60a5fa','#a78bfa','#fbbf24','#f87171'],
-          borderWidth:0,hoverBorderWidth:0
-        }]
-      },
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        cutout:'70%',
-        plugins:{
-          legend:{
-            position:'right',
-            labels:{boxWidth:8,boxHeight:8,padding:10,color:'#a1a1aa',font:{size:10},
-              usePointStyle:true,pointStyleWidth:8}
-          },
-          tooltip:{
-            backgroundColor:'#1e1e1e',borderColor:'rgba(255,255,255,0.07)',borderWidth:1,
-            padding:10,bodyColor:'#f4f4f5',
-            callbacks:{label:ctx=>' '+fmt(ctx.parsed,2)}
-          }
-        }
-      }
-    });
+    const COLORS=['#4ade80','#60a5fa','#f472b6','#fbbf24','#a78bfa','#34d399','#fb923c','#94a3b8'];
+    // Build cat breakdown from transactions with rules+overrides applied
+    const txnsForCat = applyOverrides(applyRules(D.txns)).filter(t=>t.amt<0&&!EXCLUDED_CATS.has(t.cat));
+    const catMap = {};
+    txnsForCat.forEach(t=>{ catMap[t.cat]=(catMap[t.cat]||0)+Math.abs(t.amt); });
+    const sorted = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const catLabels = sorted.map(x=>x[0]);
+    const catAmounts = sorted.map(x=>Math.round(x[1]));
+    if(catLabels.length){
+      chartRegistry.cat=new Chart(catCtx,{
+        type:'doughnut',
+        data:{labels:catLabels,datasets:[{data:catAmounts,backgroundColor:COLORS.slice(0,catLabels.length),borderWidth:0,hoverOffset:4}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#a1a1aa',font:{size:10},boxWidth:8,padding:8}},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.parsed,0)}}}}
+      });
+    }
   }
+  if(_dashEditMode) _initDashDrag();
 }
 
-// ═══════════════════════════ ACCOUNTS ═══════════════════════════
-function pgAccounts(){
-  const total=D.accounts.filter(a=>a.type!=='Credit Card').reduce((s,a)=>s+a.bal,0);
-  const cards=D.accounts.map(a=>`
-    <div class="acc-card">
-      <div class="acc-top">
-        <div class="acc-logo" style="background:${a.color}20;color:${a.color}">${a.init}</div>
-        <div>
-          <div class="acc-title">${a.name}</div>
-          <div class="acc-sub">${a.inst}</div>
-        </div>
-        <div style="margin-left:auto"><span class="badge b-gray">${a.type}</span></div>
-      </div>
-      <div class="acc-bal" style="${a.bal<0?'color:var(--red)':''}">${fmt(a.bal,2)}</div>
-      <div class="acc-meta">
-        <span class="${deltaClass(a.delta)}" style="font-size:11px">${deltaIcon(a.delta)} ${fmt(Math.abs(a.delta),0)} this month</span>
-        <span>Synced ${a.sync}</span>
-      </div>
-    </div>`).join('');
-
-  return`
-  <div class="metrics-row mb24">
-    <div class="metric">
-      <div class="metric-label">Total Assets</div>
-      <div class="metric-val">${fmt(total,0)}</div>
-      <div class="metric-delta up">▲ All accounts</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Total Debt</div>
-      <div class="metric-val" style="color:var(--red)">${fmt(D.totalDebt,0)}</div>
-      <div class="metric-delta flat">Credit cards</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Investments</div>
-      <div class="metric-val">${fmt(D.investments.reduce((s,i)=>s+(i.val||0),0),0)||'—'}</div>
-      <div class="metric-delta flat">Wealthsimple / Questrade</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Connected</div>
-      <div class="metric-val">6</div>
-      <div class="metric-delta flat">All syncing</div>
-    </div>
-  </div>
-  <div class="sec-hdr mb16">
-    <span class="sec-title">All Accounts</span>
-    <button class="btn btn-primary btn-sm" onclick="navigate('settings')"><svg data-feather="settings"></svg> Manage Connections</button>
-  </div>
-  <div class="g3 mb16">${cards}</div>
-  <div class="g3">
-    <div class="connect-card" onclick="navigate('settings')" style="cursor:pointer">
-      <svg data-feather="settings"></svg>
-      <span>Manage connections</span>
-      <span style="font-size:11px;color:var(--text4)">Plaid · 12,000+ institutions</span>
-    </div>
-  </div>`;
-}
 
 // ═══════════════════════════ TRANSACTIONS ═══════════════════════════
 // ── Transaction rules (persisted in localStorage) ────────────────────────────
@@ -1045,28 +1079,43 @@ function renderTxnList(txns){
 }
 
 let _txnDateFilter = '';
+let _txnDateFrom = '';
+let _txnDateTo = '';
 function goToTxnDate(iso){
   _txnDateFilter = iso;
+  _txnDateFrom = iso;
+  _txnDateTo = iso;
   navigate('transactions');
+}
+function clearTxnDates(){
+  _txnDateFilter=''; _txnDateFrom=''; _txnDateTo='';
+  const f=document.getElementById('txn-date-from');
+  const t=document.getElementById('txn-date-to');
+  if(f) f.value=''; if(t) t.value='';
+  filterTxns();
 }
 function filterTxns(q){
   const search = (q||document.querySelector('.search-inp')?.value||'').toLowerCase();
   const cat    = document.getElementById('catFilter')?.value||'';
+  const acc    = document.getElementById('accFilter')?.value||'';
+  const fromEl = document.getElementById('txn-date-from');
+  const toEl   = document.getElementById('txn-date-to');
+  const from   = (fromEl?.value || _txnDateFrom) || '';
+  const to     = (toEl?.value   || _txnDateTo)   || '';
+  // sync vars from inputs
+  if(fromEl) _txnDateFrom = fromEl.value;
+  if(toEl)   _txnDateTo   = toEl.value;
   let list = applyOverrides(applyRules(D.txns));
   if(search) list = list.filter(t=>(t.name||'').toLowerCase().includes(search)||(t.cat||'').toLowerCase().includes(search)||(t.acc||'').toLowerCase().includes(search));
   if(cat)    list = list.filter(t=>t.cat===cat);
-  if(_txnDateFilter){
-    // match "Jun 04" style dates against iso
-    const iso = _txnDateFilter; // "2026-06-04"
-    const d = new Date(iso+'T00:00');
-    const moShort = d.toLocaleString('en',{month:'short'}); // "Jun"
-    const dayNum  = d.getDate(); // 4
-    const dayPad  = String(dayNum).padStart(2,'0'); // "04"
+  if(acc)    list = list.filter(t=>t.acc===acc);
+  if(from||to){
     list = list.filter(t=>{
-      const raw = t.date_iso||t.date||'';
-      if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw===iso;
-      // "Jun 04" format
-      return raw===`${moShort} ${dayPad}` || raw===`${moShort} ${dayNum}`;
+      const raw = t.date_iso||'';
+      if(!raw) return true;
+      if(from && raw < from) return false;
+      if(to   && raw > to)   return false;
+      return true;
     });
   }
   renderTxnList(list);
@@ -1165,11 +1214,13 @@ function pgTransactions(){
       <option value="">All Accounts</option>
       ${[...new Set(D.txns.map(t=>t.acc))].map(a=>`<option value="${a}">${a}</option>`).join('')}
     </select>
+    <div style="display:flex;align-items:center;gap:4px">
+      <input id="txn-date-from" type="date" onchange="filterTxns()" value="${_txnDateFrom}" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;color-scheme:dark">
+      <span style="font-size:11px;color:var(--text4)">→</span>
+      <input id="txn-date-to" type="date" onchange="filterTxns()" value="${_txnDateTo}" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;color-scheme:dark">
+      ${(_txnDateFrom||_txnDateTo)?`<button onclick="clearTxnDates()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px" title="Clear dates">×</button>`:''}
+    </div>
     <button class="btn btn-ghost btn-sm" onclick="openRulesModal()"><svg data-feather="sliders" style="width:13px;height:13px"></svg> Rules (${getRules().length})</button>
-    ${_txnDateFilter?`<div style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--accent);border-radius:var(--r-sm)">
-      <span style="font-size:11px;font-weight:600;color:var(--bg)">📅 ${new Date(_txnDateFilter+'T00:00').toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}</span>
-      <button onclick="_txnDateFilter='';filterTxns()" style="background:none;border:none;color:var(--bg);cursor:pointer;font-size:14px;line-height:1;padding:0 2px">×</button>
-    </div>`:''}
     <div style="margin-left:auto;font-size:12px;color:var(--text3)" id="txn-count">${D.txns.length} transactions</div>
   </div>
   <div class="card">
@@ -1755,6 +1806,49 @@ function pgInsights(){
     </div>
   </div>
   <div style="display:flex;flex-direction:column;gap:10px">${cards}</div>`;
+}
+
+// ═══════════════════════════ ACCOUNTS ═══════════════════════════
+function pgAccounts(){
+  const accounts = D.accounts || [];
+  const totalAssets = accounts.filter(a=>a.bal>0).reduce((s,a)=>s+a.bal,0);
+  const totalDebt   = accounts.filter(a=>a.bal<0).reduce((s,a)=>s+Math.abs(a.bal),0);
+  const netWorth    = totalAssets - totalDebt;
+
+  if(!accounts.length){
+    return`<div class="card" style="text-align:center;padding:48px 24px">
+      <svg data-feather="credit-card" style="width:32px;height:32px;opacity:.15;margin-bottom:16px"></svg>
+      <div style="font-size:14px;font-weight:500;color:var(--text2);margin-bottom:8px">No accounts connected</div>
+      <div style="font-size:12px;color:var(--text4)">Go to Settings to connect your bank via Plaid</div>
+    </div>`;
+  }
+
+  const rows = accounts.map(a=>{
+    const init = a.init || (a.name||'?').slice(0,2).toUpperCase();
+    const color = a.color || '#60a5fa';
+    return`<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border2)">
+      <div style="width:40px;height:40px;border-radius:10px;background:${color}22;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${color};flex-shrink:0">${init}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13.5px;font-weight:500;color:var(--text)">${a.name||'Account'}</div>
+        <div style="font-size:11px;color:var(--text4)">${a.type||''} ${a.mask?'··'+a.mask:''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:14px;font-weight:600;color:${a.bal>=0?'var(--text)':'var(--red)'};font-variant-numeric:tabular-nums">${fmt(a.bal,2)}</div>
+        <div style="font-size:10.5px;color:var(--text4)">${a.bal>=0?'Asset':'Debt'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return`
+  <div class="metrics-row mb20">
+    <div class="metric"><div class="metric-label">Total Assets</div><div class="metric-val">${fmt(totalAssets,0)}</div></div>
+    <div class="metric"><div class="metric-label">Total Debt</div><div class="metric-val" style="color:var(--red)">${fmt(totalDebt,0)}</div></div>
+    <div class="metric"><div class="metric-label">Net Worth</div><div class="metric-val" style="color:var(--green)">${fmt(netWorth,0)}</div></div>
+  </div>
+  <div class="card">
+    <div class="sec-hdr"><span class="sec-title">Connected Accounts</span><span class="badge b-green">${accounts.length} comptes</span></div>
+    ${rows}
+  </div>`;
 }
 
 // ═══════════════════════════ INVESTMENTS ═══════════════════════════
@@ -2485,7 +2579,8 @@ function deleteHabit(id){
   navigate('habits');
 }
 function toggleHabitDay(id){
-  const today = new Date().toISOString().slice(0,10);
+  const d = new Date();
+  const today = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const habits = getHabits();
   const h = habits.find(x=>x.id===id);
   if(!h) return;
@@ -2498,21 +2593,23 @@ function toggleHabitDay(id){
 
 function pgHabits(){
   const habits = getHabits();
-  const today  = new Date().toISOString().slice(0,10);
+  const _td = new Date();
+  const today = _td.getFullYear()+'-'+String(_td.getMonth()+1).padStart(2,'0')+'-'+String(_td.getDate()).padStart(2,'0');
 
   // calc streak for a habit
   function calcStreak(log){
     let s=0;
     for(let i=0;i<60;i++){
       const d=new Date(); d.setDate(d.getDate()-i);
-      if(log.includes(d.toISOString().slice(0,10))) s++;
+      const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      if(log.includes(ds)) s++;
       else break;
     }
     return s;
   }
 
   // overall 30-day rate
-  const last30 = Array.from({length:30},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-i); return d.toISOString().slice(0,10); });
+  const last30 = Array.from({length:30},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-i); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); });
   const totalPossible = habits.length * 30;
   const totalDone = habits.reduce((s,h)=>s+last30.filter(d=>h.log.includes(d)).length,0);
   const overallRate = totalPossible>0?Math.round(totalDone/totalPossible*100):0;
@@ -2596,68 +2693,6 @@ const CAL_EVENTS_KEY = 'vault_cal_events';
 function getCalEvents(){ try{ return JSON.parse(localStorage.getItem(CAL_EVENTS_KEY)||'[]'); }catch(e){return[];} }
 function saveCalEvents(e){ localStorage.setItem(CAL_EVENTS_KEY, JSON.stringify(e)); }
 
-const CAL_EV_TYPES = {
-  birthday:   { label:'Birthday',    emoji:'🎂', color:'#f472b6' },
-  event:      { label:'Event',       emoji:'📅', color:'#b8f566' },
-  rdv:        { label:'Rendez-vous', emoji:'🤝', color:'#a78bfa' },
-  reminder:   { label:'Reminder',    emoji:'⏰', color:'#fbbf24' },
-  travel:     { label:'Travel',      emoji:'✈️',  color:'#60a5fa' },
-};
-
-let _calEvModal = null; // 'new' | {id}
-
-function openCalEvModal(day){
-  _calEvModal = 'new';
-  const iso = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(day||1).padStart(2,'0')}`;
-  const m = document.getElementById('cal-ev-modal');
-  m.style.display='flex';
-  setTimeout(()=>{
-    m.style.opacity='1';
-    document.getElementById('cev-date').value = iso;
-    document.getElementById('cev-title').value = '';
-    document.getElementById('cev-notes').value = '';
-    document.getElementById('cev-repeat').value = 'none';
-    // reset type pills
-    document.querySelectorAll('.cev-type-pill').forEach(b=>{
-      const s=b.dataset.type==='event';
-      b.style.background=s?'var(--text)':'var(--bg4)';
-      b.style.color=s?'var(--bg)':'var(--text3)';
-      b.style.borderColor=s?'var(--text)':'var(--border)';
-    });
-    _calEvModalType='event';
-    document.getElementById('cev-title').focus();
-  },10);
-}
-function closeCalEvModal(){
-  const m=document.getElementById('cal-ev-modal');
-  m.style.opacity='0'; setTimeout(()=>m.style.display='none',150);
-}
-let _calEvModalType='event';
-function cevPickType(type){
-  _calEvModalType=type;
-  document.querySelectorAll('.cev-type-pill').forEach(b=>{
-    const s=b.dataset.type===type;
-    b.style.background=s?'var(--text)':'var(--bg4)';
-    b.style.color=s?'var(--bg)':'var(--text3)';
-    b.style.borderColor=s?'var(--text)':'var(--border)';
-  });
-}
-function saveCalEv(){
-  const title=document.getElementById('cev-title').value.trim();
-  const date=document.getElementById('cev-date').value;
-  const notes=document.getElementById('cev-notes').value.trim();
-  const repeat=document.getElementById('cev-repeat').value;
-  if(!title||!date) return;
-  const evs=getCalEvents();
-  evs.push({ id:Date.now()+'', type:_calEvModalType, title, date, notes, repeat });
-  saveCalEvents(evs);
-  closeCalEvModal();
-  setTimeout(()=>navigate('calendar'),160);
-}
-function deleteCalEv(id){
-  saveCalEvents(getCalEvents().filter(e=>e.id!==id));
-  navigate('calendar');
-}
 let _calYear = new Date().getFullYear();
 let _calMonth = new Date().getMonth();
 let _calSelDay = null;
@@ -2672,261 +2707,219 @@ function calNav(delta){
 
 function calSelectDay(d){
   _calSelDay = _calSelDay===d ? null : d;
-  const panel = document.getElementById('cal-day-panel');
-  if(panel) panel.innerHTML = _calBuildDayPanel(_calSelDay, _calYear, _calMonth);
-  // update title
-  const titleEl = document.getElementById('cal-day-title');
-  if(titleEl){
-    const monthName = new Date(_calYear,_calMonth,1).toLocaleString('en',{month:'long'});
-    titleEl.textContent = _calSelDay ? _calSelDay+' '+monthName : 'Day Detail';
-  }
-  // update add button
-  const addBtn = document.getElementById('cal-day-add');
-  if(addBtn) addBtn.style.display = _calSelDay ? '' : 'none';
-  // highlight selected cell
-  document.querySelectorAll('.cal-cell').forEach(c=>{
-    const cd = parseInt(c.dataset.day);
-    c.style.outline = (cd===_calSelDay) ? '2px solid var(--accent)' : '';
-    c.style.zIndex  = (cd===_calSelDay) ? '1' : '';
+  document.querySelectorAll('.cal-cell[data-day]').forEach(c=>{
+    const cd=parseInt(c.dataset.day);
+    c.style.outline=(cd===_calSelDay)?'2px solid var(--accent)':'none';
+    c.style.zIndex=(cd===_calSelDay)?'1':'0';
   });
+  const panel=document.getElementById('cal-day-panel');
+  if(panel) panel.innerHTML=_calBuildDayPanel(_calSelDay,_calYear,_calMonth);
 }
 
-function _calBuildEvents(year, month){
-  const events = {}; // day -> [{type, label, color, sub}]
-  const add = (day, type, label, color, sub='') => {
-    if(!events[day]) events[day]=[];
-    events[day].push({type, label, color, sub});
-  };
-  // Transactions
+function openCalAddModal(isoDate){
+  const m=document.getElementById('cal-add-modal');
+  if(!m) return;
+  m.style.display='flex';
+  document.getElementById('cadd-title').value='';
+  document.getElementById('cadd-note').value='';
+  document.getElementById('cadd-time').value='';
+  document.querySelectorAll('.cal-tpl-pill').forEach(b=>b.classList.remove('active'));
+  const date=isoDate||(_calSelDay?`${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(_calSelDay).padStart(2,'0')}`:new Date().toISOString().slice(0,10));
+  document.getElementById('cadd-date').value=date;
+  setTimeout(()=>document.getElementById('cadd-title').focus(),50);
+}
+function calSetTemplate(type){
+  document.querySelectorAll('.cal-tpl-pill').forEach(b=>b.classList.toggle('active', b.textContent.includes(type)));
+  const titleEl=document.getElementById('cadd-title');
+  const timeEl=document.getElementById('cadd-time');
+  if(type==='Rendez-vous'){ titleEl.placeholder='ex: Dentiste, Coiffeur...'; if(!timeEl.value) timeEl.value='09:00'; }
+  else if(type==='Anniversaire'){ titleEl.placeholder='ex: Anniversaire Marie'; timeEl.value=''; }
+  else if(type==='Événement'){ titleEl.placeholder='ex: Fête, Souper...'; if(!timeEl.value) timeEl.value='18:00'; }
+  titleEl.focus();
+}
+function closeCalAddModal(){
+  const m=document.getElementById('cal-add-modal');
+  if(m) m.style.display='none';
+}
+function saveCalAdd(){
+  const title=document.getElementById('cadd-title').value.trim();
+  const date=document.getElementById('cadd-date').value;
+  const time=document.getElementById('cadd-time').value;
+  const note=document.getElementById('cadd-note').value.trim();
+  const activePill=document.querySelector('.cal-tpl-pill.active');
+  const type=activePill?activePill.textContent.trim():'';
+  const ico=type.includes('Rendez-vous')?'📅':type.includes('Anniversaire')?'🎂':'🎉';
+  if(!title||!date) return;
+  const evs=getCalEvents();
+  evs.push({ id:Date.now()+'', title, date, time, note, type, ico });
+  saveCalEvents(evs);
+  closeCalAddModal();
+  navigate('calendar');
+}
+function deleteLocalCalEv(id){
+  saveCalEvents(getCalEvents().filter(e=>e.id!==id));
+  navigate('calendar');
+}
+
+function _calDayTotals(year, month){
+  // returns { day: { income, spending } }
+  const totals={};
   applyOverrides(applyRules(D.txns)).forEach(t=>{
-    const raw = t.date_iso||t.date||'';
-    // handle "Jun 04" format (no year) — assume current year
-    let d;
-    if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) d=new Date(raw+'T00:00');
-    else d=new Date(raw+' '+year);
-    if(isNaN(d)||d.getMonth()!==month||d.getFullYear()!==year) return;
-    const day=d.getDate();
-    if(t.amt<0) add(day,'txn','💸 '+t.name.slice(0,18),'var(--red)', (Math.abs(t.amt)).toFixed(0)+'$');
-    else        add(day,'income','💰 '+t.name.slice(0,18),'var(--green)', '+'+t.amt.toFixed(0)+'$');
-  });
-  // Gym
-  getGymLogs().forEach(l=>{
-    const d=new Date(l.date+'T00:00');
-    if(d.getMonth()!==month||d.getFullYear()!==year) return;
-    add(d.getDate(),'gym','💪 '+l.workout,'var(--accent)', l.duration||'');
-  });
-  // Meals (summarize per day: X meals, Y kcal)
-  const mealsByDay={};
-  getMeals().forEach(m=>{
-    const d=new Date(m.date+'T00:00');
+    const raw=t.date_iso||'';
+    if(!raw) return;
+    const d=new Date(raw+'T00:00');
     if(d.getMonth()!==month||d.getFullYear()!==year) return;
     const day=d.getDate();
-    if(!mealsByDay[day]) mealsByDay[day]={count:0,cal:0,protein:0,items:[]};
-    mealsByDay[day].count++; mealsByDay[day].cal+=m.cal; mealsByDay[day].protein+=m.protein;
-    mealsByDay[day].items.push(m);
+    if(!totals[day]) totals[day]={income:0,spending:0};
+    if(t.amt>0) totals[day].income+=t.amt;
+    else totals[day].spending+=Math.abs(t.amt);
   });
-  Object.entries(mealsByDay).forEach(([day,ms])=>{
-    add(+day,'meal','🍽️ '+ms.count+' meal'+(ms.count>1?'s':''),'var(--yellow)', ms.cal+'kcal · '+ms.protein+'g prot');
-  });
-  // Habits — check each habit's log array for this month's dates
-  getHabits().forEach(h=>{
-    (h.log||[]).forEach(iso=>{
-      const d=new Date(iso+'T00:00');
-      if(d.getMonth()!==month||d.getFullYear()!==year) return;
-      add(d.getDate(),'habit','✅ '+h.name,'var(--green2,#4ade80)','');
-    });
-  });
-  // Custom events (birthdays, rdv, events, reminders, travel)
-  getCalEvents().forEach(e=>{
-    const tpl = CAL_EV_TYPES[e.type]||CAL_EV_TYPES.event;
-    // parse date
-    const d = new Date(e.date+'T00:00');
-    // yearly repeat for birthdays
-    const matches = e.repeat==='yearly'
-      ? (d.getMonth()===month)
-      : (d.getMonth()===month && d.getFullYear()===year);
-    if(!matches) return;
-    add(d.getDate(), 'custom_'+e.type, tpl.emoji+' '+e.title, tpl.color, e.notes||'');
-  });
-  return events;
+  return totals;
 }
 
 function _calBuildDayPanel(day, year, month){
-  if(!day) return '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Click a day to see details</div>';
-  const allEvs = _calBuildEvents(year, month)[day]||[];
-  // exclude raw txns — show gym, meals, habits, custom only
-  const evs = allEvs.filter(e=>e.type!=='txn'&&e.type!=='income');
-  const isoDate = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-  const txnCount = allEvs.filter(e=>e.type==='txn'||e.type==='income').length;
-
-  const isoPrefix = isoDate;
-  const customEvMap = {};
-  getCalEvents().forEach(e=>{ if(e.date===isoPrefix || (e.repeat==='yearly' && e.date.slice(5)===isoPrefix.slice(5))) customEvMap[e.title]=e.id; });
-
-  const rows = evs.map(e=>`
-    <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2)">
-      <div style="width:3px;min-height:32px;border-radius:2px;background:${e.color};flex-shrink:0;margin-top:2px"></div>
+  if(!day) return '<div style="padding:24px;text-align:center;color:var(--text4);font-size:12px">Clique un jour</div>';
+  const iso=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  const dayTxns=applyOverrides(applyRules(D.txns)).filter(t=>(t.date_iso||'')===iso);
+  if(!dayTxns.length && !gcalEventsForDay(iso).length && !getCalEvents().filter(e=>e.date===iso).length) return `<div style="padding:24px;text-align:center;color:var(--text4);font-size:12px">Aucune activité<br><button onclick="openCalAddModal('${iso}')" style="margin-top:10px;padding:6px 14px;background:var(--bg4);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text3);font-family:var(--font);font-size:11px;cursor:pointer">+ Ajouter</button></div>`;
+  const income=dayTxns.filter(t=>t.amt>0).reduce((s,t)=>s+t.amt,0);
+  const spending=dayTxns.filter(t=>t.amt<0).reduce((s,t)=>s+Math.abs(t.amt),0);
+  const gevs=gcalEventsForDay(iso);
+  const levs=getCalEvents().filter(e=>e.date===iso);
+  const localHtml=levs.length?levs.map(e=>`
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border2)">
+      <div style="width:3px;min-height:28px;border-radius:2px;background:var(--accent);flex-shrink:0;margin-top:2px"></div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.label}</div>
-        ${e.sub?`<div style="font-size:11px;color:var(--text3);margin-top:1px">${e.sub}</div>`:''}
+        <div style="font-size:12.5px;color:var(--text);font-weight:500">${e.ico||'📅'} ${e.title}</div>
+        <div style="font-size:11px;color:var(--text4);margin-top:1px">${e.time||'Toute la journée'}${e.note?' · '+e.note:''}</div>
       </div>
-      ${e.type.startsWith('custom_')&&customEvMap[e.label.slice(e.label.indexOf(' ')+1)]?
-        `<button onclick="deleteCalEv('${customEvMap[e.label.slice(e.label.indexOf(' ')+1)]}')" style="background:none;border:none;color:var(--text4);cursor:pointer;font-size:14px;padding:2px 4px;flex-shrink:0">×</button>`:''}
+      <button onclick="deleteLocalCalEv('${e.id}')" style="background:none;border:none;color:var(--text4);cursor:pointer;font-size:16px;padding:0 2px;flex-shrink:0">×</button>
+    </div>`).join(''):'';
+  const gcalHtml=gevs.length?`
+    <div style="margin-bottom:12px">
+      ${gevs.map(e=>{
+        const time=e.allDay?'All day':new Date(e.start).toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'});
+        return`<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border2)">
+          <div style="width:3px;min-height:28px;border-radius:2px;background:#4285f4;flex-shrink:0;margin-top:2px"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12.5px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.title}</div>
+            <div style="font-size:11px;color:var(--text4);margin-top:1px">${time}${e.location?' · '+e.location:''}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`:'';
+  const rows=dayTxns.map(t=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name}</div>
+        <div style="font-size:11px;color:var(--text4);margin-top:1px">${t.cat} · ${t.acc}</div>
+      </div>
+      <div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:${t.amt<0?'var(--red)':'var(--green)'}">${t.amt<0?'-':'+'}${fmt(Math.abs(t.amt),2)}</div>
     </div>`).join('');
-
-  const empty = !evs.length ? `<div style="padding:12px 0;text-align:center;color:var(--text3);font-size:12px">Nothing logged on ${day} ${new Date(year,month,day).toLocaleString('en',{month:'short'})}</div>` : '';
-
-  const txnBtn = txnCount>0 ? `
-    <button onclick="goToTxnDate('${isoDate}')"
-      style="width:100%;margin-top:10px;padding:8px 12px;background:var(--bg4);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text2);font-family:var(--font);font-size:12px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between">
-      <span>💸 Transactions le ${day} ${new Date(year,month,day).toLocaleString('en',{month:'short'})}</span>
-      <span style="color:var(--text3)">${txnCount} →</span>
-    </button>` : '';
-
-  return rows + empty + txnBtn;
+  return `
+    ${localHtml}
+    ${gcalHtml}
+    ${dayTxns.length?`<div style="display:flex;justify-content:space-between;padding:0 0 12px;margin-bottom:4px;border-bottom:1px solid var(--border)">
+      <span style="font-size:11px;color:var(--green);font-weight:500">+${fmt(income,2)}</span>
+      <span style="font-size:11px;color:var(--red);font-weight:500">-${fmt(spending,2)}</span>
+    </div>
+    ${rows}
+    <button onclick="goToTxnDate('${iso}')" style="width:100%;margin-top:12px;padding:8px;background:var(--bg4);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text3);font-family:var(--font);font-size:11px;cursor:pointer">
+      Voir dans Transactions →
+    </button>`:''}`;
 }
 
 function pgCalendar(){
-  const year = _calYear, month = _calMonth;
-  const monthName = new Date(year,month,1).toLocaleString('en',{month:'long'});
-  const daysInMonth = new Date(year,month+1,0).getDate();
-  const offset = (new Date(year,month,1).getDay()+6)%7;
-  const today = new Date();
-  const isCurrentMonth = today.getFullYear()===year && today.getMonth()===month;
-  const todayD = isCurrentMonth ? today.getDate() : -1;
+  const year=_calYear, month=_calMonth;
+  const monthName=new Date(year,month,1).toLocaleString('fr-CA',{month:'long'});
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const offset=(new Date(year,month,1).getDay()+6)%7;
+  const today=new Date();
+  const todayD=(today.getFullYear()===year&&today.getMonth()===month)?today.getDate():-1;
+  const totals=_calDayTotals(year,month);
 
-  const events = _calBuildEvents(year, month);
-
-  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const headers=days.map(d=>`<div class="cal-day-hdr">${d}</div>`).join('');
+  const headers=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(d=>`<div class="cal-day-hdr">${d}</div>`).join('');
   let cells='';
   for(let i=0;i<offset;i++) cells+=`<div class="cal-cell empty"></div>`;
   for(let d=1;d<=daysInMonth;d++){
-    const isToday = d===todayD;
-    const isSelected = d===_calSelDay;
-    const dayEvs = events[d]||[];
-
-    // Split: custom events (chips) vs background data (dots)
-    const customEvs = dayEvs.filter(e=>e.type.startsWith('custom_'));
-    const bgEvs     = dayEvs.filter(e=>!e.type.startsWith('custom_'));
-
-    // Custom event chips — show up to 2, prominent
-    const chips = customEvs.slice(0,2).map(e=>
-      `<span class="cal-ev-chip" style="background:${e.color}22;color:${e.color};border:1px solid ${e.color}55">${e.label.slice(0,13)}</span>`
-    ).join('');
-
-    // Background dots (gym, meals, habits, txns) — deduped by type, max 4
-    const typesSeen=new Set();
-    const dots = bgEvs.filter(e=>{ if(typesSeen.has(e.type)) return false; typesSeen.add(e.type); return true; })
-      .slice(0,4).map(e=>`<div style="width:4px;height:4px;border-radius:50%;background:${e.color};flex-shrink:0"></div>`).join('');
-
-    cells+=`<div class="cal-cell ${isToday?'today':''}" data-day="${d}"
-      onclick="calSelectDay(${d})"
-      style="cursor:pointer;outline:${isSelected?'2px solid var(--accent)':'none'};z-index:${isSelected?1:0}">
-      <span style="font-size:10px;font-weight:${isToday?'700':'500'};color:${isToday?'var(--text)':'var(--text3)'};line-height:1;margin-bottom:2px">${d}</span>
+    const isToday=d===todayD;
+    const isSel=d===_calSelDay;
+    const t=totals[d];
+    const net=t?(t.income-t.spending):0;
+    const iso=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const gevs=gcalEventsForDay(iso);
+    const levs=getCalEvents().filter(e=>e.date===iso);
+    const amtHtml=t?`<div style="font-size:9px;font-weight:600;color:${net>=0?'var(--green)':'var(--red)'};line-height:1;margin-top:2px">${net>=0?'+':''}${fmt(net,0)}</div>`:'';
+    const chips=[
+      ...levs.slice(0,2).map(e=>`<div style="font-size:8px;background:var(--accent)22;color:var(--accent);border-radius:2px;padding:1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-top:1px">${e.title.slice(0,12)}</div>`),
+      ...gevs.slice(0,1).map(e=>`<div style="font-size:8px;background:#4285f422;color:#4285f4;border-radius:2px;padding:1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-top:1px">${e.title.slice(0,12)}</div>`),
+    ].join('');
+    cells+=`<div class="cal-cell${isToday?' today':''}" data-day="${d}" onclick="calSelectDay(${d})"
+      style="cursor:pointer;outline:${isSel?'2px solid var(--accent)':'none'};z-index:${isSel?1:0};flex-direction:column;align-items:center;justify-content:flex-start;padding:6px 4px">
+      <span style="font-size:11px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--text)':'var(--text3)'}">${d}</span>
+      ${amtHtml}
       ${chips}
-      ${dots?`<div class="cal-dot-row">${dots}</div>`:''}
     </div>`;
   }
 
-  // Upcoming — custom events only (next 30 days)
-  const upcoming=[];
-  for(let i=0;i<=30;i++){
-    const dd=new Date(today); dd.setDate(dd.getDate()+i);
-    const m=dd.getMonth(), y=dd.getFullYear(), dy=dd.getDate();
-    const evs=(_calBuildEvents(y,m)[dy]||[]).filter(e=>e.type.startsWith('custom_'));
-    evs.forEach(e=>upcoming.push({...e, date:dd.toLocaleDateString('en',{month:'short',day:'numeric'}), iso:dd.toISOString().slice(0,10)}));
-  }
-
   return`
-  <!-- Add Event modal -->
-  <div id="cal-ev-modal" style="display:none;opacity:0;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:999;align-items:flex-end;justify-content:center;transition:opacity .15s">
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;padding:20px;width:100%;max-width:480px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <span style="font-size:15px;font-weight:700;color:var(--text)">Add Event</span>
-        <button onclick="closeCalEvModal()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;line-height:1">×</button>
+  <!-- Add Event Modal -->
+  <div id="cal-add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:999;align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px;width:360px;max-width:95vw">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <span style="font-size:14px;font-weight:600;color:var(--text)">Ajouter un événement</span>
+        <button onclick="closeCalAddModal()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;line-height:1">×</button>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-        ${Object.entries(CAL_EV_TYPES).map(([k,t])=>
-          `<button class="cev-type-pill" data-type="${k}" onclick="cevPickType('${k}')"
-            style="padding:5px 12px;border-radius:16px;font-size:12px;font-family:var(--font);cursor:pointer;transition:all .12s;background:${k==='event'?'var(--text)':'var(--bg4)'};border:1px solid ${k==='event'?'var(--text)':'var(--border)'};color:${k==='event'?'var(--bg)':'var(--text3)'}">
-            ${t.emoji} ${t.label}</button>`).join('')}
+      <div style="display:flex;gap:6px;margin-bottom:16px">
+        <button onclick="calSetTemplate('Rendez-vous')" class="cal-tpl-pill">📅 Rendez-vous</button>
+        <button onclick="calSetTemplate('Anniversaire')" class="cal-tpl-pill">🎂 Anniversaire</button>
+        <button onclick="calSetTemplate('Événement')" class="cal-tpl-pill">🎉 Événement</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div>
-          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Titre</div>
-          <input id="cev-title" type="text" placeholder="ex: Fête de Marie..." style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 10px;color:var(--text);font-family:var(--font);font-size:13px;outline:none">
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Date</div>
-          <input id="cev-date" type="date" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;color-scheme:dark">
-        </div>
-      </div>
+      <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Titre</label>
+      <input id="cadd-title" type="text" placeholder="ex: Dentiste, Call client..." style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;margin-bottom:14px" onkeydown="if(event.key==='Enter')saveCalAdd()">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
         <div>
-          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Notes</div>
-          <input id="cev-notes" type="text" placeholder="Optionnel..." style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 10px;color:var(--text);font-family:var(--font);font-size:13px;outline:none">
+          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Date</label>
+          <input id="cadd-date" type="date" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;color-scheme:dark">
         </div>
         <div>
-          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Récurrence</div>
-          <select id="cev-repeat" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none">
-            <option value="none">Une fois</option>
-            <option value="yearly">Chaque année</option>
-            <option value="monthly">Chaque mois</option>
-          </select>
+          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Heure</label>
+          <input id="cadd-time" type="time" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;color-scheme:dark">
         </div>
       </div>
-      <button onclick="saveCalEv()" class="btn btn-primary" style="width:100%;padding:11px;font-size:14px">Save</button>
+      <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Note (optionnel)</label>
+      <input id="cadd-note" type="text" placeholder="" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;margin-bottom:20px" onkeydown="if(event.key==='Enter')saveCalAdd()">
+      <div style="display:flex;gap:8px">
+        <button onclick="closeCalAddModal()" class="btn btn-ghost" style="flex:1">Annuler</button>
+        <button onclick="saveCalAdd()" class="btn btn-primary" style="flex:1">Sauvegarder</button>
+      </div>
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 260px;gap:14px;align-items:start">
+  <div style="display:grid;grid-template-columns:1fr 240px;gap:14px;align-items:start">
     <div class="card">
       <div class="sec-hdr mb12">
         <div style="display:flex;align-items:center;gap:10px">
           <button onclick="calNav(-1)" style="background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text3);cursor:pointer;font-size:14px;padding:3px 10px;font-family:var(--font)">‹</button>
-          <span class="sec-title">${monthName} ${year}</span>
+          <span class="sec-title" style="text-transform:capitalize">${monthName} ${year}</span>
           <button onclick="calNav(1)" style="background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text3);cursor:pointer;font-size:14px;padding:3px 10px;font-family:var(--font)">›</button>
         </div>
         <div style="display:flex;gap:6px">
-          <button onclick="_calYear=new Date().getFullYear();_calMonth=new Date().getMonth();navigate('calendar')" class="btn btn-ghost btn-sm">Today</button>
-          <button onclick="openCalEvModal(${todayD>0?todayD:1})" class="btn btn-primary btn-sm"><svg data-feather="plus" style="width:12px;height:12px"></svg> Add</button>
+          <button onclick="_calYear=new Date().getFullYear();_calMonth=new Date().getMonth();navigate('calendar')" class="btn btn-ghost btn-sm">Aujourd'hui</button>
+          <button onclick="openCalAddModal()" class="btn btn-primary btn-sm"><svg data-feather="plus" style="width:12px;height:12px"></svg> Add</button>
         </div>
       </div>
       <div class="cal-grid mb6">${headers}</div>
-      <div class="cal-grid mb12">${cells}</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;background:var(--accent)"></div><span style="font-size:10px;color:var(--text3)">Gym</span></div>
-        <div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;background:var(--yellow)"></div><span style="font-size:10px;color:var(--text3)">Meals</span></div>
-        <div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;background:#4ade80"></div><span style="font-size:10px;color:var(--text3)">Habits</span></div>
-        <div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;background:var(--red)"></div><span style="font-size:10px;color:var(--text3)">Dépenses</span></div>
-        ${Object.entries(CAL_EV_TYPES).map(([,t])=>`
-        <div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;background:${t.color}"></div><span style="font-size:10px;color:var(--text3)">${t.emoji} ${t.label}</span></div>`).join('')}
-      </div>
+      <div class="cal-grid">${cells}</div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div class="card">
-        <div class="sec-hdr mb8">
-          <span class="sec-title" id="cal-day-title">${_calSelDay ? _calSelDay+' '+monthName : 'Day Detail'}</span>
-          <button id="cal-day-add" onclick="openCalEvModal(${_calSelDay||1})" class="btn btn-ghost btn-sm" style="font-size:10px;${_calSelDay?'':'display:none'}">+ Add</button>
-        </div>
-        <div id="cal-day-panel">${_calBuildDayPanel(_calSelDay, year, month)}</div>
-      </div>
-      <div class="card">
-        <div class="sec-hdr mb8"><span class="sec-title">Upcoming</span></div>
-        ${upcoming.length?upcoming.slice(0,15).map(e=>`
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)">
-            <div style="width:5px;height:5px;border-radius:50%;background:${e.color};flex-shrink:0"></div>
-            <div style="flex:1;font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.label}</div>
-            <div style="font-size:10px;color:var(--text3);flex-shrink:0">${e.date}</div>
-          </div>`).join('')
-        :'<div style="padding:12px 0;text-align:center;color:var(--text3);font-size:12px">Rien à venir</div>'}
-      </div>
+    <div class="card" style="position:sticky;top:80px">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:12px" id="cal-day-title">${_calSelDay?_calSelDay+' '+monthName:'Détail du jour'}</div>
+      <div id="cal-day-panel">${_calBuildDayPanel(_calSelDay,year,month)}</div>
     </div>
   </div>`;
 }
 
-// ═══════════════════════════ SETTINGS ═══════════════════════════
+
 function pgSettings(){
   const section=(title,rows)=>`
     <div class="card mb14">
@@ -2983,9 +2976,9 @@ function pgSettings(){
   ${section('Connections',[
     row('Plaid','Bank & credit card data (Scotia, Visa)','<span class="badge b-green">Connected</span>'),
     row('Wise','International transfers (USD, CAD, EUR)','<span class="badge b-green">Connected</span>'),
+    row('Google Calendar','Sync your events and reminders',`<button class="btn btn-ghost btn-sm" id="gcal-connect-btn" onclick="connectGCal()"><svg data-feather="calendar" style="width:13px;height:13px"></svg> <span id="gcal-btn-label">Connect</span></button>`),
     row('Wealthsimple','Investment accounts','<span class="badge b-gray">Not connected</span>'),
     row('Questrade','Brokerage accounts','<span class="badge b-gray">Not connected</span>'),
-    row('Phantom Wallet','Solana wallet','<span class="badge b-gray">Not connected</span>'),
   ].join(''))}
 
   ${section('Notifications',[
@@ -3003,7 +2996,7 @@ function pgSettings(){
   ${section('Data',[
     row('Import local data','Transfer data from localhost to this app','<button class="btn btn-ghost btn-sm" onclick="window.open(\'/import\',\'_blank\')"><svg data-feather="upload"></svg> Import</button>'),
     row('Sync now','Force refresh all accounts','<button class="btn btn-ghost btn-sm" onclick="doRefresh()"><svg data-feather="refresh-cw"></svg> Sync</button>'),
-    row('Sign out','Sign out of Vault','<button class="btn btn-ghost btn-sm" onclick="fetch('/api/auth/logout',{method:'POST',credentials:'include'}).then(()=>window.location.href='/')"><svg data-feather="log-out"></svg> Sign out</button>'),
+    row('Sign out','Sign out of Vault','<button class="btn btn-ghost btn-sm" onclick="fetch(\`/api/auth/logout\`,{method:\'POST\',credentials:\'include\'}).then(()=>window.location.href=\'/\')"><svg data-feather="log-out"></svg> Sign out</button>'),
   ].join(''))}`;
 }
 
@@ -3316,7 +3309,26 @@ document.addEventListener('DOMContentLoaded',()=>{
         }
         Object.assign(D, data);
         if(ts) ts.textContent = data.generated || 'just now';
+        // Load user info
+        fetch('/api/auth/me', { credentials: 'include' })
+          .then(r => r.json())
+          .then(u => {
+            if(u.user?.email) {
+              const email = u.user.email;
+              const initials = email.slice(0,2).toUpperCase();
+              const el = document.getElementById('sidebar-username');
+              const av = document.getElementById('sidebar-avatar');
+              if(el) el.textContent = email;
+              if(av) av.textContent = initials;
+            }
+          }).catch(()=>{});
         navigate('dashboard');
+        // Load GCal events in background
+        loadGCalEvents();
+        // Handle ?gcal= param
+        const sp = new URLSearchParams(window.location.search);
+        if(sp.get('gcal')==='connected'){ showToast('Google Calendar connected!'); history.replaceState({},'','/vault.html'); }
+        if(sp.get('gcal')==='error'){ showToast('Google Calendar connection failed.', 'error'); history.replaceState({},'','/vault.html'); }
       })
       .catch(err => {
         document.getElementById('content').innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:16px"><div style="color:#f87171;font-size:14px;font-weight:500">⚠ Failed to load data</div><div style="color:#71717a;font-size:12px">${err.message}</div></div>`;
@@ -3324,6 +3336,46 @@ document.addEventListener('DOMContentLoaded',()=>{
   })();
   initNotifications();
 });
+
+// ═══════════════════════════ GOOGLE CALENDAR ═══════════════════════════
+let GCAL_EVENTS = []; // [{id,title,start,end,allDay,color,location,description}]
+let GCAL_CONNECTED = false;
+
+function connectGCal(){
+  window.location.href = '/api/auth/google';
+}
+
+function loadGCalEvents(){
+  fetch('/api/gcal', { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      GCAL_CONNECTED = data.connected || false;
+      GCAL_EVENTS = data.events || [];
+      // Update button label if on settings page
+      const lbl = document.getElementById('gcal-btn-label');
+      if(lbl) lbl.textContent = GCAL_CONNECTED ? 'Reconnect' : 'Connect';
+      // Re-render calendar if currently visible
+      const active = document.querySelector('.nav-item.active');
+      if(active && active.dataset.page === 'calendar') navigate('calendar');
+    })
+    .catch(()=>{});
+}
+
+function gcalEventsForDay(isoDate){
+  return GCAL_EVENTS.filter(e => {
+    const s = (e.start||'').slice(0,10);
+    const en = (e.end||'').slice(0,10);
+    return isoDate >= s && isoDate <= en;
+  });
+}
+
+function showToast(msg, type='success'){
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:8px;font-size:13px;font-family:var(--font);z-index:9999;transition:opacity .3s;background:${type==='error'?'#ef4444':'#22c55e'};color:#fff;font-weight:500`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3000);
+}
 </script>
 </body>
 </html>
