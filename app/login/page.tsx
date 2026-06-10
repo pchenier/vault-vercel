@@ -1,0 +1,174 @@
+'use client'
+import { useState } from 'react'
+import Link from 'next/link'
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      const data = await res.json()
+      if (data.ok) {
+        window.location.href = data.redirectTo
+      } else {
+        setError(data.error || 'Login failed')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Vault. Sign In</title>
+        <style>{`
+          *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+          body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #080808;
+            color: #f4f4f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2.5rem;
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 16px;
+            margin: 1rem;
+          }
+          .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4ade80;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+          }
+          .subtitle {
+            color: #71717a;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+          }
+          label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #a1a1aa;
+            margin-bottom: 0.4rem;
+            margin-top: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+          input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #f4f4f5;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.15s;
+          }
+          input:focus { border-color: #4ade80; }
+          .btn {
+            width: 100%;
+            margin-top: 1.5rem;
+            padding: 0.875rem;
+            background: #4ade80;
+            color: #080808;
+            font-weight: 700;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.15s;
+          }
+          .btn:hover { opacity: 0.9; }
+          .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+          .error {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 8px;
+            color: #f87171;
+            font-size: 0.875rem;
+          }
+          .register-link {
+            margin-top: 1.5rem;
+            text-align: center;
+            color: #71717a;
+            font-size: 0.875rem;
+          }
+          .register-link a {
+            color: #4ade80;
+            text-decoration: none;
+            font-weight: 500;
+          }
+          .register-link a:hover { text-decoration: underline; }
+        `}</style>
+      </head>
+      <body>
+        <div className="card">
+          <div className="logo"><img src="/logo.svg" alt="Vault" style={{height:'32px'}} /></div>
+          <div className="subtitle">Sign in to your account</div>
+
+          {error && <div className="error">{error}</div>}
+
+          <form onSubmit={handleSubmit}>
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              placeholder="••••••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+            <button type="submit" className="btn" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="register-link">
+            No account? <Link href="/register">Create one</Link>
+          </div>
+        </div>
+      </body>
+    </html>
+  )
+}
