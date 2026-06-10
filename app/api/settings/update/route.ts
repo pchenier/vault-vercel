@@ -1,0 +1,58 @@
+import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import bcrypt from 'bcryptjs'
+
+export const dynamic = 'force-dynamic'
+
+export async function POST(request: Request) {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(COOKIE_NAME)?.value
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const payload = verifyToken(token)
+    if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const body = await request.json()
+    const { newPassword, wiseToken, wiseProfile, usdToCad, startDate } = body
+
+    const updates: string[] = []
+
+    if (newPassword) {
+      if (newPassword.length < 8) {
+        return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+      }
+      const hash = await bcrypt.hash(newPassword, 12)
+      await supabaseAdmin
+        .from('vault_users')
+        .update({ password_hash: hash, updated_at: new Date().toISOString() })
+        .eq('id', payload.sub)
+      updates.push('password')
+    }
+
+    const credUpdates: Record<string, unknown> = {}
+    if (wiseToken !== undefined) { credUpdates.wise_token = wiseToken; updates.push('wiseToken') }
+    if (wiseProfile !== undefined) { credUpdates.wise_profile = wiseProfile; updates.push('wiseProfile') }
+    if (usdToCad !== undefined) { credUpdates.usd_to_cad = parseFloat(usdToCad); updates.push('usdToCad') }
+    if (startDate !== undefined) { credUpdates.start_date = startDate; updates.push('startDate') }
+
+    if (Object.keys(credUpdates).length > 0) {
+      credUpdates.updated_at = new Date().toISOString()
+      await supabaseAdmin
+        .from('vault_credentials')
+        .update(credUpdates)
+        .eq('user_id', payload.sub)
+    }
+
+    if (updates.length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+    }
+
+    return NextResponse.json({ ok: true, message: `Updated: ${updates.join(', ')}`, updates })
+  } catch (e: unknown) {
+    const err = e instanceof Error ? e.message : 'Unknown error'
+    console.error('Settings update error:', err)
+    return NextResponse.json({ error: err }, { status: 500 })
+  }
+}
