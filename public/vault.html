@@ -2981,12 +2981,30 @@ function pgSettings(){
     </form>
   `)}
 
-  ${section('Connections',[
+  ${section('Banking',[
     row('Plaid','Bank & credit card data (Scotia, Visa)','<span class="badge b-green">Connected</span>'),
     row('Wise','International transfers (USD, CAD, EUR)','<span class="badge b-green">Connected</span>'),
-    row('Google Calendar','Sync your events and reminders',`<button class="btn btn-ghost btn-sm" id="gcal-connect-btn" onclick="connectGCal()"><svg data-feather="calendar" style="width:13px;height:13px"></svg> <span id="gcal-btn-label">Connect</span></button>`),
-    row('Wealthsimple','Investment accounts','<span class="badge b-gray">Not connected</span>'),
-    row('Questrade','Brokerage accounts','<span class="badge b-gray">Not connected</span>'),
+  ].join(''))}
+
+  ${section('Calendar',[
+    row('Google Calendar','Sync your events and reminders',`<div style="display:flex;align-items:center;gap:10px"><div class="toggle ${GCAL_CONNECTED?'on':''}" id="gcal-toggle" onclick="toggleGCal()"></div><span style="font-size:12px;color:var(--text3)">${GCAL_CONNECTED?'Connected':'Off'}</span></div>`),
+  ].join(''))}
+
+  ${section('Investments',[
+    row('Wealthsimple','Investment accounts','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
+    row('Questrade','Brokerage accounts','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
+  ].join(''))}
+
+  ${section('Crypto',[
+    row('CoinGecko','Live price data for holdings','<span class="badge b-green">Connected</span>'),
+    row('Coinbase','Exchange & wallet','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
+    row('Binance','Exchange & wallet','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
+  ].join(''))}
+
+  ${section('Other',[
+    row('PayPal','Payments & invoices','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
+    row('Stripe','Business payments','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
+    row('Shopify','Store revenue & orders','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
   ].join(''))}
 
   ${section('Notifications',[
@@ -3349,8 +3367,30 @@ document.addEventListener('DOMContentLoaded',()=>{
 let GCAL_EVENTS = []; // [{id,title,start,end,allDay,color,location,description}]
 let GCAL_CONNECTED = false;
 
+function toggleGCal(){
+  if(GCAL_CONNECTED){
+    // Disconnect: remove credentials from Supabase
+    if(confirm('Disconnect Google Calendar? Your events will stop syncing.')){
+      fetch('/api/gcal/disconnect',{method:'POST',credentials:'include'}).then(r=>{
+        if(r.ok){
+          GCAL_CONNECTED=false;
+          GCAL_EVENTS=[];
+          const t=document.getElementById('gcal-toggle');
+          if(t)t.classList.remove('on');
+          const lbl=t?.nextElementSibling;
+          if(lbl)lbl.textContent='Off';
+          showToast('Google Calendar disconnected');
+        }
+      }).catch(()=>{});
+    }
+  } else {
+    // Connect via OAuth
+    window.location.href='/api/auth/google';
+  }
+}
+
 function connectGCal(){
-  window.location.href = '/api/auth/google';
+  toggleGCal();
 }
 
 function loadGCalEvents(){
@@ -3359,9 +3399,13 @@ function loadGCalEvents(){
     .then(data => {
       GCAL_CONNECTED = data.connected || false;
       GCAL_EVENTS = data.events || [];
-      // Update button label if on settings page
-      const lbl = document.getElementById('gcal-btn-label');
-      if(lbl) lbl.textContent = GCAL_CONNECTED ? 'Reconnect' : 'Connect';
+      // Update toggle on settings page
+      const t=document.getElementById('gcal-toggle');
+      if(t){
+        t.classList.toggle('on',GCAL_CONNECTED);
+        const lbl=t.nextElementSibling;
+        if(lbl)lbl.textContent=GCAL_CONNECTED?'Connected':'Off';
+      }
       // Re-render calendar if currently visible
       const active = document.querySelector('.nav-item.active');
       if(active && active.dataset.page === 'calendar') navigate('calendar');
