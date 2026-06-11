@@ -1,0 +1,3 @@
+ALTER TABLE vault_credentials ADD COLUMN IF NOT EXISTS crypto_holdings JSONB DEFAULT NULL;
+ALTER TABLE vault_credentials ADD COLUMN IF NOT EXISTS questrade_token TEXT DEFAULT NULL;
+ALTER TABLE vault_credentials ADD COLUMN IF NOT EXISTS questrade_token_expiry TIMESTAMPTZ DEFAULT NULL;

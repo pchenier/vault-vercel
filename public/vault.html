@@ -2991,20 +2991,20 @@ function pgSettings(){
   ].join(''))}
 
   ${section('Investments',[
-    row('Wealthsimple','Investment accounts','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
-    row('Questrade','Brokerage accounts','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
+    row('Wealthsimple','Import CSV from account settings','`<button class="btn btn-ghost btn-sm" id="ws-btn" onclick="importWealthsimple()"><svg data-feather="upload" style="width:13px;height:13px"></svg> Import CSV</button>`),
+    row('Questrade','Personal access token','`<div style="display:flex;align-items:center;gap:10px"><div class="toggle ${QT_CONNECTED?'on':''}" id="qt-toggle" onclick="toggleQuestrade()"></div><span id="qt-label" style="font-size:12px;color:var(--text3)">${QT_CONNECTED?'Connected':'Off'}</span></div>`),
   ].join(''))}
 
   ${section('Crypto',[
     row('CoinGecko','Live price data for holdings','<span class="badge b-green">Connected</span>'),
-    row('Coinbase','Exchange & wallet','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
-    row('Binance','Exchange & wallet','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
+    row('Coinbase','Exchange & wallet','`<button class="btn btn-ghost btn-sm" id="coinbase-btn" onclick="connectCoinbase()"><svg data-feather="key" style="width:13px;height:13px"></svg> API Key</button>`'),
+    row('Binance','Exchange & wallet','`<button class="btn btn-ghost btn-sm" id="binance-btn" onclick="connectBinance()"><svg data-feather="key" style="width:13px;height:13px"></svg> API Key</button>`'),
   ].join(''))}
 
   ${section('Other',[
-    row('PayPal','Payments & invoices','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
-    row('Stripe','Business payments','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
-    row('Shopify','Store revenue & orders','<span class="badge" style="background:var(--bg4);color:var(--text3);font-size:11px;padding:3px 10px;border-radius:99px">Coming soon</span>'),
+    row('PayPal','Payments & invoices','`<button class="btn btn-ghost btn-sm" id="paypal-btn" onclick="connectPayPal()"><svg data-feather="key" style="width:13px;height:13px"></svg> API Key</button>`'),
+    row('Stripe','Business payments','`<button class="btn btn-ghost btn-sm" id="stripe-btn" onclick="connectStripe()"><svg data-feather="key" style="width:13px;height:13px"></svg> API Key</button>`'),
+    row('Shopify','Store revenue & orders','`<button class="btn btn-ghost btn-sm" id="shopify-btn" onclick="connectShopify()"><svg data-feather="key" style="width:13px;height:13px"></svg> API Key</button>`'),
   ].join(''))}
 
   ${section('Notifications',[
@@ -3351,6 +3351,11 @@ document.addEventListener('DOMContentLoaded',()=>{
         navigate('dashboard');
         // Load GCal events in background
         loadGCalEvents();
+        // Load crypto prices
+        loadCryptoPrices();
+        // Load connections (Questrade, Wealthsimple)
+        loadQuestrade();
+        loadWealthsimple();
         // Handle ?gcal= param
         const sp = new URLSearchParams(window.location.search);
         if(sp.get('gcal')==='connected'){ showToast('Google Calendar connected!'); history.replaceState({},'','/vault.html'); }
@@ -3366,6 +3371,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ═══════════════════════════ GOOGLE CALENDAR ═══════════════════════════
 let GCAL_EVENTS = []; // [{id,title,start,end,allDay,color,location,description}]
 let GCAL_CONNECTED = false;
+let QT_CONNECTED = false;
+let WS_CONNECTED = false;
 
 function toggleGCal(){
   if(GCAL_CONNECTED){
@@ -3427,6 +3434,164 @@ function showToast(msg, type='success'){
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3000);
+}
+
+// ═══════════════════════════ CONNECTIONS ═══════════════════════════
+
+function showApiModal(title, label, placeholder, onSubmit){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;width:400px;max-width:90vw">
+      <h3 style="margin:0 0 4px;color:var(--text);font-size:15px">${title}</h3>
+      <p style="margin:0 0 16px;color:var(--text3);font-size:12px">${placeholder}</p>
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">${label}</label>
+      <input id="api-key-input" type="password" style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:var(--font);margin-bottom:16px;box-sizing:border-box" placeholder="${placeholder.includes('key')?'Enter API key':'Enter token'}">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:8px 16px;background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text3);font-size:13px;cursor:pointer;font-family:var(--font)">Cancel</button>
+        <button id="api-key-submit" style="padding:8px 16px;background:var(--green);border:none;border-radius:8px;color:#000;font-size:13px;cursor:pointer;font-weight:500;font-family:var(--font)">Connect</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#api-key-submit').onclick = () => {
+    const val = overlay.querySelector('#api-key-input').value.trim();
+    if(!val){showToast('Please enter a value','error');return;}
+    overlay.remove();
+    onSubmit(val);
+  };
+  overlay.querySelector('#api-key-input').focus();
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+}
+
+// Questrade
+function toggleQuestrade(){
+  if(QT_CONNECTED){
+    if(!confirm('Disconnect Questrade? Your portfolio data will be removed.'))return;
+    fetch('/api/questrade',{method:'DELETE',credentials:'include'}).then(r=>r.json()).then(()=>{
+      QT_CONNECTED=false;
+      const t=document.getElementById('qt-toggle');
+      if(t)t.classList.remove('on');
+      const lbl=document.getElementById('qt-label');
+      if(lbl)lbl.textContent='Off';
+      showToast('Questrade disconnected');
+    });
+  } else {
+    showApiModal('Connect Questrade','Personal Access Token','Get your token at my.questrade.com/api-management',token=>{
+      fetch('/api/questrade',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({token})})
+        .then(r=>r.json()).then(d=>{
+          if(d.ok){QT_CONNECTED=true;const t=document.getElementById('qt-toggle');if(t)t.classList.add('on');const lbl=document.getElementById('qt-label');if(lbl)lbl.textContent='Connected';showToast('Questrade connected!');loadQuestrade();}
+          else showToast(d.error||'Connection failed','error');
+        }).catch(()=>showToast('Connection failed','error'));
+    });
+  }
+}
+
+function loadQuestrade(){
+  fetch('/api/questrade',{credentials:'include'}).then(r=>r.json()).then(d=>{
+    QT_CONNECTED=d.connected||false;
+    const t=document.getElementById('qt-toggle');
+    if(t)t.classList.toggle('on',QT_CONNECTED);
+    const lbl=document.getElementById('qt-label');
+    if(lbl)lbl.textContent=QT_CONNECTED?'Connected':'Off';
+    // Merge positions into investments
+    if(d.positions&&d.positions.length)D.investments=[...(D.investments||[]),...d.positions.map(p=>({...p,source:'questrade'}))];
+  }).catch(()=>{});
+}
+
+// Wealthsimple CSV import
+function importWealthsimple(){
+  const input=document.createElement('input');
+  input.type='file';input.accept='.csv';
+  input.onchange=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const csv=ev.target.result;
+      fetch('/api/wealthsimple',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({csv})})
+        .then(r=>r.json()).then(d=>{
+          if(d.ok){WS_CONNECTED=true;showToast(`Imported ${d.count} positions from Wealthsimple!`);loadWealthsimple();}
+          else showToast(d.error||'Import failed','error');
+        }).catch(()=>showToast('Import failed','error'));
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function loadWealthsimple(){
+  fetch('/api/wealthsimple',{credentials:'include'}).then(r=>r.json()).then(d=>{
+    WS_CONNECTED=d.connected||false;
+    if(d.investments&&d.investments.length)D.investments=[...(D.investments||[]).filter(i=>i.source!=='wealthsimple'),...d.investments];
+  }).catch(()=>{});
+}
+
+function loadCryptoPrices(){
+  fetch('/api/crypto',{credentials:'include'}).then(r=>r.json()).then(d=>{
+    if(d.connected&&d.crypto&&d.crypto.length){
+      D.crypto=d.crypto;
+      // Re-render if on crypto page
+      const active=document.querySelector('.nav-item.active');
+      if(active&&active.dataset.page==='crypto')navigate('crypto');
+    }
+  }).catch(()=>{});
+}
+
+// Coinbase API key
+function connectCoinbase(){
+  showApiModal('Connect Coinbase','API Key + Secret','Enter your Coinbase read-only API key (key:secret)',raw=>{
+    const parts=raw.split(':');const apiKey=parts[0];const apiSecret=parts[1]||'';
+    fetch('/api/connections/manage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({name:'coinbase',coinbase_api_key:apiKey,coinbase_api_secret:apiSecret})})
+      .then(r=>r.json()).then(d=>{
+        if(d.ok){showToast('Coinbase connected!');const btn=document.getElementById('coinbase-btn');if(btn)btn.outerHTML='<span class="badge b-green">Connected</span>';}
+        else showToast(d.error||'Connection failed','error');
+      }).catch(()=>showToast('Connection failed','error'));
+  });
+}
+
+// Binance API key
+function connectBinance(){
+  showApiModal('Connect Binance','API Key + Secret','Enter your Binance read-only API key (key:secret)',raw=>{
+    const parts=raw.split(':');const apiKey=parts[0];const apiSecret=parts[1]||'';
+    fetch('/api/connections/manage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({name:'binance',binance_api_key:apiKey,binance_api_secret:apiSecret})})
+      .then(r=>r.json()).then(d=>{
+        if(d.ok){showToast('Binance connected!');const btn=document.getElementById('binance-btn');if(btn)btn.outerHTML='<span class="badge b-green">Connected</span>';}
+        else showToast(d.error||'Connection failed','error');
+      }).catch(()=>showToast('Connection failed','error'));
+  });
+}
+
+// PayPal
+function connectPayPal(){
+  showApiModal('Connect PayPal','Client ID','Get your REST API Client ID from developer.paypal.com',clientId=>{
+    fetch('/api/connections/manage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({name:'paypal',paypal_client_id:clientId})})
+      .then(r=>r.json()).then(d=>{
+        if(d.ok){showToast('PayPal connected!');const btn=document.getElementById('paypal-btn');if(btn)btn.outerHTML='<span class="badge b-green">Connected</span>';}
+        else showToast(d.error||'Connection failed','error');
+      }).catch(()=>showToast('Connection failed','error'));
+  });
+}
+
+// Stripe
+function connectStripe(){
+  showApiModal('Connect Stripe','API Key','Get your read-only API key from dashboard.stripe.com/apikeys',apiKey=>{
+    fetch('/api/connections/manage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({name:'stripe',stripe_api_key:apiKey})})
+      .then(r=>r.json()).then(d=>{
+        if(d.ok){showToast('Stripe connected!');const btn=document.getElementById('stripe-btn');if(btn)btn.outerHTML='<span class="badge b-green">Connected</span>';}
+        else showToast(d.error||'Connection failed','error');
+      }).catch(()=>showToast('Connection failed','error'));
+  });
+}
+
+// Shopify
+function connectShopify(){
+  showApiModal('Connect Shopify','Store URL & Access Token','Format: mystore.myshopify.com:shpat_xxx',raw=>{
+    const parts=raw.split(':');const storeUrl=parts[0];const token=parts.slice(1).join(':');
+    fetch('/api/connections/manage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({name:'shopify',shopify_store_url:storeUrl,shopify_access_token:token})})
+      .then(r=>r.json()).then(d=>{
+        if(d.ok){showToast('Shopify connected!');const btn=document.getElementById('shopify-btn');if(btn)btn.outerHTML='<span class="badge b-green">Connected</span>';}
+        else showToast(d.error||'Connection failed','error');
+      }).catch(()=>showToast('Connection failed','error'));
+  });
 }
 </script>
 </body>
