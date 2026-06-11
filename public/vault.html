@@ -237,10 +237,11 @@ button{font-family:var(--font)}
 .habit-name{font-size:13px;font-weight:500;color:var(--text)}
 .habit-streak{font-size:12px;font-weight:600;color:var(--yellow)}
 .habit-dots{display:flex;gap:3px;flex-wrap:wrap}
-.dot{width:9px;height:9px;border-radius:2px}
-.dot.done{background:var(--green);opacity:.75}
-.dot.miss{background:var(--bg5)}
-.dot.today{background:var(--blue)}
+.dot{width:9px;height:9px;border-radius:2px;transition:transform .1s,opacity .15s}
+.dot:hover{transform:scale(1.4);opacity:1!important}
+.dot.done{background:var(--green);opacity:.8}
+.dot.miss{background:var(--bg5);opacity:.6}
+.dot.dot-today{outline:2px solid var(--accent);outline-offset:1px}
 .habit-stat{font-size:11px;color:var(--text3);margin-top:6px}
 
 /* ── GYM HEATMAP ── */
@@ -2578,15 +2579,16 @@ function deleteHabit(id){
   saveHabits(getHabits().filter(h=>h.id!==id));
   navigate('habits');
 }
-function toggleHabitDay(id){
+function toggleHabitDay(id, dateStr){
   const d = new Date();
-  const today = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const fallback = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const target = dateStr || fallback;
   const habits = getHabits();
   const h = habits.find(x=>x.id===id);
   if(!h) return;
-  const idx = h.log.indexOf(today);
+  const idx = h.log.indexOf(target);
   if(idx>=0) h.log.splice(idx,1);
-  else h.log.push(today);
+  else h.log.push(target);
   saveHabits(habits);
   navigate('habits');
 }
@@ -2617,8 +2619,14 @@ function pgHabits(){
   const cards = habits.map(h=>{
     const streak = calcStreak(h.log);
     const doneToday = h.log.includes(today);
-    const dots = last30.reverse().map(d=>`<div class="dot ${h.log.includes(d)?'done':'miss'}"></div>`).join('');
-    last30.reverse(); // restore order
+    const dots = last30.map(d=>{
+      const done = h.log.includes(d);
+      const isToday = d === today;
+      // Format date for tooltip: Jun 10
+      const [y,mo,dy] = d.split('-');
+      const label = new Date(+y,+mo-1,+dy).toLocaleDateString('en-CA',{month:'short',day:'numeric'});
+      return`<div class="dot ${done?'done':'miss'}${isToday?' dot-today':''}" title="${label}${done?' ✓':''}" onclick="toggleHabitDay('${h.id}','${d}')" style="cursor:pointer"></div>`;
+    }).join('');
     const rate = Math.round(last30.filter(d=>h.log.includes(d)).length/30*100);
     return`<div class="habit-card">
       <div class="habit-hdr">
