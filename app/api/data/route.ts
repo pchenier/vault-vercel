@@ -93,34 +93,34 @@ async function getWiseTransactions(wiseToken: string, wiseProfile: string, balan
 }
 
 const CAT_MAP: Record<string, [string, string]> = {
-  'Food and Drink': ['Bouffe/Resto', '🍽️'], 'Restaurants': ['Bouffe/Resto', '🍽️'],
-  'Groceries': ['Épicerie', '🛒'], 'Travel': ['Transport', '🚇'],
-  'Transportation': ['Transport', '🚇'], 'Gas Stations': ['Gaz', '⛽'],
-  'Shops': ['Shopping', '🛍️'], 'Recreation': ['Divertissement', '🎬'],
-  'Healthcare': ['Santé', '💊'], 'Gyms and Fitness Centers': ['Gym', '💪'],
-  'Subscription': ['Abonnements', '📺'], 'Service': ['Télécom', '📱'],
-  'Telecommunication Services': ['Télécom', '📱'], 'Rent': ['Logement', '🏠'],
-  'Utilities': ['Hydro/Services', '⚡'], 'Transfer': ['Cash/Virements', '💸'],
-  'Payment': ['Cash/Virements', '💸'], 'Payroll': ['Revenu', '💼'], 'Deposit': ['Revenu', '💼'],
+  'Food and Drink': ['Bouffe/Resto', 'utensils'], 'Restaurants': ['Bouffe/Resto', 'utensils'],
+  'Groceries': ['Épicerie', 'shopping-cart'], 'Travel': ['Transport', 'map'],
+  'Transportation': ['Transport', 'map'], 'Gas Stations': ['Gaz', 'droplet'],
+  'Shops': ['Shopping', 'shopping-bag'], 'Recreation': ['Divertissement', 'film'],
+  'Healthcare': ['Santé', 'heart'], 'Gyms and Fitness Centers': ['Gym', 'zap'],
+  'Subscription': ['Abonnements', 'monitor'], 'Service': ['Télécom', 'smartphone'],
+  'Telecommunication Services': ['Télécom', 'smartphone'], 'Rent': ['Logement', 'home'],
+  'Utilities': ['Hydro/Services', 'zap'], 'Transfer': ['Cash/Virements', 'trending-down'],
+  'Payment': ['Cash/Virements', 'trending-down'], 'Payroll': ['Revenu', 'briefcase'], 'Deposit': ['Revenu', 'briefcase'],
 }
 
 function categorize(cats: string[]): [string, string] {
-  if (!cats?.length) return ['Autre', '📂']
+  if (!cats?.length) return ['Autre', 'folder']
   for (const c of cats) { const m = CAT_MAP[c]; if (m) return m }
   const s = cats.join(' ')
-  if (s.includes('Food') || s.includes('Restaurant')) return ['Bouffe/Resto', '🍽️']
-  if (s.includes('Grocer')) return ['Épicerie', '🛒']
-  if (s.includes('Gas') || s.includes('Fuel')) return ['Gaz', '⛽']
-  if (s.includes('Shop') || s.includes('Retail')) return ['Shopping', '🛍️']
-  if (s.includes('Transfer') || s.includes('Payment')) return ['Cash/Virements', '💸']
-  if (s.includes('Payroll') || s.includes('Deposit') || s.includes('Income')) return ['Revenu', '💼']
-  if (s.includes('Subscription') || s.includes('Netflix') || s.includes('Spotify')) return ['Abonnements', '📺']
-  if (s.includes('Transport') || s.includes('Travel') || s.includes('Uber')) return ['Transport', '🚇']
-  if (s.includes('Gym') || s.includes('Fitness')) return ['Gym', '💪']
-  if (s.includes('Health') || s.includes('Medical')) return ['Santé', '💊']
-  if (s.includes('Rent') || s.includes('Mortgage')) return ['Logement', '🏠']
-  if (s.includes('Util') || s.includes('Hydro') || s.includes('Electric')) return ['Hydro/Services', '⚡']
-  return ['Autre', '📂']
+  if (s.includes('Food') || s.includes('Restaurant')) return ['Bouffe/Resto', 'utensils']
+  if (s.includes('Grocer')) return ['Épicerie', 'shopping-cart']
+  if (s.includes('Gas') || s.includes('Fuel')) return ['Gaz', 'droplet']
+  if (s.includes('Shop') || s.includes('Retail')) return ['Shopping', 'shopping-bag']
+  if (s.includes('Transfer') || s.includes('Payment')) return ['Cash/Virements', 'trending-down']
+  if (s.includes('Payroll') || s.includes('Deposit') || s.includes('Income')) return ['Revenu', 'briefcase']
+  if (s.includes('Subscription') || s.includes('Netflix') || s.includes('Spotify')) return ['Abonnements', 'monitor']
+  if (s.includes('Transport') || s.includes('Travel') || s.includes('Uber')) return ['Transport', 'map']
+  if (s.includes('Gym') || s.includes('Fitness')) return ['Gym', 'zap']
+  if (s.includes('Health') || s.includes('Medical')) return ['Santé', 'heart']
+  if (s.includes('Rent') || s.includes('Mortgage')) return ['Logement', 'home']
+  if (s.includes('Util') || s.includes('Hydro') || s.includes('Electric')) return ['Hydro/Services', 'zap']
+  return ['Autre', 'folder']
 }
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -214,7 +214,7 @@ export async function GET() {
       const [y, m, d] = (t.date || '').split('-').map(Number)
       const dateLabel = new Date(y, m - 1, d).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
       txns.push({ name: t.name, merchant: t.name, amt: Math.round(displayAmt * 100) / 100,
-        date: dateLabel, date_iso: t.date, cat: 'Cash/Virements', acc: 'Wise', ico: '💸' })
+        date: dateLabel, date_iso: t.date, cat: 'Cash/Virements', acc: 'Wise', ico: 'trending-down' })
     }
     txns.sort((a, b) => (b.date_iso || '').localeCompare(a.date_iso || ''))
 
@@ -281,6 +281,7 @@ export async function GET() {
       catLabels: categorySpending.map(c => c.cat),
       catAmounts: categorySpending.map(c => c.amt),
       investments: [], investHistory: [], crypto: [], habits: [], gym: [], gymDays: [], meals: [], bills: [],
+      userEmail: payload.email, userName: payload.email.split('@')[0],
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (e: any) {
     console.error('API data error:', e)
