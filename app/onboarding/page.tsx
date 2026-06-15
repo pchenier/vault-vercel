@@ -37,7 +37,7 @@ export default function OnboardingPage() {
           const exData = await exRes.json()
           if (exData.ok) {
             setStatus('Bank connected! Loading your dashboard...')
-            window.location.href = '/vault.html'
+            window.location.href = 'https://app.fiscit.com/'
           } else {
             setStatus(exData.error || 'Failed to connect bank. Please try again.')
             setLoading(false)
@@ -175,7 +175,7 @@ export default function OnboardingPage() {
           </div>
 
           <div style={{ marginTop: '2rem' }}>
-            <a href="/vault.html" className="skip">Skip for now</a>
+            <a href="https://app.fiscit.com/" className="skip">Skip for now</a>
           </div>
         </div>
       </body>

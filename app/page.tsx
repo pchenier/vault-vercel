@@ -379,8 +379,8 @@ export default function LandingPage() {
         <nav>
           <a href="/" style={{textDecoration:'none'}}><Logo height={28} /></a>
           <div className="nav-actions">
-            <a href="https://app.fiscit.com/login" className="btn-ghost">Sign In</a>
-            <a href="https://app.fiscit.com/register" className="btn-primary">Start Free</a>
+            <a href="/login" className="btn-ghost">Sign In</a>
+            <a href="/register" className="btn-primary">Start Free</a>
           </div>
         </nav>
 
@@ -393,8 +393,8 @@ export default function LandingPage() {
               Connect your bank, your gym, your Google apps and finally see the full picture.
             </p>
             <div className="hero-ctas">
-              <a href="https://app.fiscit.com/register" className="btn-hero-primary">Start for free</a>
-              <a href="https://app.fiscit.com/login" className="btn-hero-ghost">Sign in</a>
+              <a href="/register" className="btn-hero-primary">Start for free</a>
+              <a href="/login" className="btn-hero-ghost">Sign in</a>
             </div>
             <div className="social-proof">
               Join <span>early adopters</span> who ditched five apps for one
@@ -443,7 +443,7 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="import-cta-wrap">
-              <a href="https://app.fiscit.com/register" className="btn-google">
+              <a href="/register" className="btn-google">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -477,7 +477,7 @@ export default function LandingPage() {
                   <li key={i}><Check />{f}</li>
                 ))}
               </ul>
-              <a href="https://app.fiscit.com/register" className="pricing-cta">Start Free Trial</a>
+              <a href="/register" className="pricing-cta">Start Free Trial</a>
               <div className="pricing-note">14 day free trial. No credit card required.</div>
             </div>
           </div>
@@ -518,7 +518,7 @@ export default function LandingPage() {
             <Logo height={24} />
             <div className="footer-tagline">Your whole life. One dashboard.</div>
           </div>
-          <a href="https://app.fiscit.com/login" className="footer-link">Sign in</a>
+          <a href="/login" className="footer-link">Sign in</a>
         </footer>
       </div>
     </>
