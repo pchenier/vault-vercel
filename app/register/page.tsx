@@ -4,6 +4,7 @@ import Link from 'next/link'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -12,6 +13,10 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    if (email.toLowerCase().trim() !== confirmEmail.toLowerCase().trim()) {
+      setError('Email addresses do not match')
+      return
+    }
     if (password !== confirm) {
       setError('Passwords do not match')
       return
@@ -156,6 +161,17 @@ export default function RegisterPage() {
               placeholder="you@example.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
+            />
+            <label htmlFor="confirmEmail">Confirm Email</label>
+            <input
+              id="confirmEmail"
+              name="confirmEmail"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={confirmEmail}
+              onChange={e => setConfirmEmail(e.target.value)}
             />
             <label htmlFor="password">Password</label>
             <input
