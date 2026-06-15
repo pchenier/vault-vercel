@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
     const { data: user } = await supabaseAdmin
       .from('vault_users')
-      .select('id, email, password_hash')
+      .select('id, email, password_hash, email_confirmed')
       .eq('email', email.toLowerCase().trim())
       .single()
 
@@ -27,13 +27,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
 
+    if (!user.email_confirmed) {
+      return NextResponse.json({ error: 'Please confirm your email address before signing in. Check your inbox for the verification link.', needsVerification: true }, { status: 403 })
+    }
+
     const { data: creds } = await supabaseAdmin
       .from('vault_credentials')
       .select('plaid_token')
       .eq('user_id', user.id)
       .single()
 
-    const redirectTo = creds?.plaid_token ? '/vault.html' : '/onboarding'
+    const redirectTo = creds?.plaid_token ? 'https://app.fiscit.com/' : '/onboarding'
 
     const token = signToken(user.id, user.email)
     const response = NextResponse.json({ ok: true, redirectTo })

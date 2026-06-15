@@ -8,6 +8,8 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
+  const [needsVerification, setNeedsVerification] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
 
   useEffect(() => {
     // Auto-redirect if already logged in
@@ -37,6 +39,7 @@ export default function LoginPage() {
           : 'https://app.fiscit.com/'
       } else {
         setError(data.error || 'Login failed')
+        if (data.needsVerification) setNeedsVerification(true)
       }
     } catch {
       setError('Network error. Please try again.')
@@ -155,6 +158,20 @@ export default function LoginPage() {
           <div className="subtitle">Sign in to your account</div>
 
           {error && <div className="error">{error}</div>}
+
+          {needsVerification && !resendSent && (
+            <button type="button" onClick={async () => {
+              const res = await fetch('/api/auth/resend-verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+              })
+              if (res.ok) setResendSent(true)
+            }} style={{width:'100%',marginTop:'0.75rem',padding:'0.625rem',background:'transparent',border:'1px solid #4ade80',borderRadius:'8px',color:'#4ade80',fontWeight:600,cursor:'pointer',fontSize:'0.875rem'}}>
+              Resend Verification Email
+            </button>
+          )}
+          {resendSent && <div style={{marginTop:'0.75rem',textAlign:'center',color:'#4ade80',fontSize:'0.875rem'}}>Verification email sent! Check your inbox.</div>}
 
           <form onSubmit={handleSubmit}>
             <label htmlFor="email">Email</label>
