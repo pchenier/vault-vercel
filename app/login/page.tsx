@@ -151,7 +151,7 @@ export default function LoginPage() {
       </head>
       <body>
         <div className="card">
-          <div className="logo">F Fiscit</div>
+          <div className="logo"><svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" style={{display:'block'}}><rect width="32" height="32" rx="8" fill="#0A0F1A"/><rect x="7" y="6" width="5" height="20" rx="2" fill="#F0F4F8"/><rect x="7" y="6" width="16" height="5" rx="2" fill="#F0F4F8"/><rect x="7" y="14" width="12" height="4" rx="2" fill="#F0F4F8"/><circle cx="26" cy="8.5" r="3.5" fill="#b8f566"/></svg> <span style={{verticalAlign:'middle',marginLeft:'0.3rem'}}>Fiscit</span></div>
           <div className="subtitle">Sign in to your account</div>
 
           {error && <div className="error">{error}</div>}
