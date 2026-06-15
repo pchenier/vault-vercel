@@ -11,18 +11,29 @@ export default function Icon() {
           width: 32,
           height: 32,
           borderRadius: 8,
-          background: '#0e0e0e',
+          background: '#0A0F1A',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          position: 'relative',
         }}
       >
-        <svg width="26" height="26" viewBox="0 0 20 20">
-          <polygon
-            points="2,3 7,3 10,15 13,3 18,3 10,19"
-            fill="#b8f566"
-          />
-        </svg>
+        {/* F letter */}
+        <div style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          <div style={{ width: 5, height: 20, background: '#F0F4F8', borderRadius: 2 }} />
+          <div style={{ width: 16, height: 5, background: '#F0F4F8', borderRadius: 2, position: 'absolute', top: 0, left: 0 }} />
+          <div style={{ width: 12, height: 4, background: '#F0F4F8', borderRadius: 2, position: 'absolute', top: 8, left: 0 }} />
+        </div>
+        {/* Blue dot */}
+        <div style={{
+          width: 7,
+          height: 7,
+          borderRadius: 7,
+          background: '#60A5FA',
+          position: 'absolute',
+          top: 3,
+          right: 0,
+        }} />
       </div>
     ),
     { ...size }

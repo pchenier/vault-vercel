@@ -32,7 +32,7 @@ export default function ImportPage() {
       }
       if (keys.length === 0) {
         setStatus("error")
-        setMsg("No recognized Vault keys found in JSON. Make sure you copied the full output.")
+        setMsg("No recognized Fiscit keys found in JSON. Make sure you copied the full output.")
         return
       }
       setImported(keys)
@@ -49,7 +49,7 @@ export default function ImportPage() {
       <head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Vault — Import Data</title>
+        <title>Fiscit — Import Data</title>
         <style>{`
           *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
           body { font-family: -apple-system, 'Inter', sans-serif; background: #080808; color: #f4f4f5; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 40px 24px; }
@@ -83,8 +83,8 @@ export default function ImportPage() {
       <body>
         <div className="card">
           <div className="logo">
-            <div className="logo-mark">V</div>
-            <span style={{fontSize:'16px',fontWeight:600}}>Vault — Import Data</span>
+            <div className="logo-mark">F</div>
+            <span style={{fontSize:'16px',fontWeight:600}}>Fiscit — Import Data</span>
           </div>
           <h2>Import from local</h2>
           <p className="sub">Transfers your categories, budget limits, rules, gym logs, meals, habits and calendar from localhost to this Vercel app.</p>

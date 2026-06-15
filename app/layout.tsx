@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vault — Your finances. Finally clear.",
+  title: "Fiscit — Your finances. Finally clear.",
   description: "A premium personal finance dashboard. Track spending, balances, and savings in one place.",
 
 };

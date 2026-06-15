@@ -21,7 +21,7 @@ export async function POST() {
       },
       body: JSON.stringify({
         user: { client_user_id: payload.sub },
-        client_name: 'Vault',
+        client_name: 'Fiscit',
         products: ['transactions'],
         country_codes: ['CA'],
         language: 'en',

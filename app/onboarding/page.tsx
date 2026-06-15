@@ -61,7 +61,7 @@ export default function OnboardingPage() {
       <head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Vault. Connect Your Bank</title>
+        <title>Fiscit. Connect Your Bank</title>
         <style>{`
           *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
           body {
@@ -155,11 +155,11 @@ export default function OnboardingPage() {
       </head>
       <body>
         <div className="card">
-          <div className="logo">V Vault</div>
+          <div className="logo">F Fiscit</div>
           <div className="icon">🏦</div>
           <h1>Connect your bank</h1>
           <p className="desc">
-            Vault needs access to your transactions to work. Your data is encrypted and never shared.
+            Fiscit needs access to your transactions to work. Your data is encrypted and never shared.
           </p>
 
           <button className="btn" onClick={openPlaidLink} disabled={loading}>

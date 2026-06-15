@@ -2,14 +2,22 @@
 import { useState, useEffect } from 'react'
 
 const Logo = ({ height = 28 }: { height?: number }) => (
-  // eslint-disable-next-line @next/next/no-img-element
-  <img src="/logo.svg" alt="Vault" height={height} style={{height:`${height}px`, width:'auto', display:'block'}} />
+  <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width={height} height={height} style={{display:'block'}}>
+    <rect width="32" height="32" rx="8" fill="#0A0F1A"/>
+    <rect x="7" y="6" width="5" height="20" rx="2" fill="#F0F4F8"/>
+    <rect x="7" y="6" width="16" height="5" rx="2" fill="#F0F4F8"/>
+    <rect x="7" y="14" width="12" height="4" rx="2" fill="#F0F4F8"/>
+    <circle cx="26" cy="8.5" r="3.5" fill="#60A5FA"/>
+  </svg>
 )
 
 const FaviconV = () => (
   <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="32" height="32" rx="8" fill="#080808"/>
-    <path d="M9 9 L16 23 L23 9" stroke="#b8f566" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    <rect width="32" height="32" rx="8" fill="#0A0F1A"/>
+    <rect x="7" y="6" width="5" height="20" rx="2" fill="#F0F4F8"/>
+    <rect x="7" y="6" width="16" height="5" rx="2" fill="#F0F4F8"/>
+    <rect x="7" y="14" width="12" height="4" rx="2" fill="#F0F4F8"/>
+    <circle cx="26" cy="8.5" r="3.5" fill="#60A5FA"/>
   </svg>
 )
 
