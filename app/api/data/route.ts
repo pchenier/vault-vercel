@@ -93,11 +93,31 @@ async function getWiseTransactions(wiseToken: string, wiseProfile: string, balan
 }
 
 const CAT_MAP: Record<string, [string, string]> = {
+  // Plaid personal_finance_category primary keys (uppercase with underscores)
+  'FOOD_AND_DRINK': ['Bouffe/Resto', 'utensils'],
+  'TRANSPORTATION': ['Transport', 'map'],
+  'SHOPS': ['Shopping', 'shopping-bag'],
+  'RECREATION': ['Divertissement', 'film'],
+  'HEALTHCARE': ['Santé', 'heart'],
+  'Gyms and Fitness Centers': ['Gym', 'zap'],
+  'SUBSCRIPTION': ['Abonnements', 'monitor'],
+  'SERVICE': ['Télécom', 'smartphone'],
+  'RENT': ['Logement', 'home'],
+  'UTILITIES': ['Hydro/Services', 'zap'],
+  'TRANSFER': ['Cash/Virements', 'trending-down'],
+  'PAYMENT': ['Cash/Virements', 'trending-down'],
+  'PAYROLL': ['Revenu', 'briefcase'],
+  'DEPOSIT': ['Revenu', 'briefcase'],
+  'GENERAL_SERVICES': ['Télécom', 'smartphone'],
+  'INSURANCE': ['Assurance', 'shield'],
+  'LOAN_PAYMENTS': ['Logement', 'home'],
+  'TAXES': ['Autre', 'folder'],
+  // Legacy / fallback keys (title case with spaces)
   'Food and Drink': ['Bouffe/Resto', 'utensils'], 'Restaurants': ['Bouffe/Resto', 'utensils'],
   'Groceries': ['Épicerie', 'shopping-cart'], 'Travel': ['Transport', 'map'],
   'Transportation': ['Transport', 'map'], 'Gas Stations': ['Gaz', 'droplet'],
   'Shops': ['Shopping', 'shopping-bag'], 'Recreation': ['Divertissement', 'film'],
-  'Healthcare': ['Santé', 'heart'], 'Gyms and Fitness Centers': ['Gym', 'zap'],
+  'Healthcare': ['Santé', 'heart'],
   'Subscription': ['Abonnements', 'monitor'], 'Service': ['Télécom', 'smartphone'],
   'Telecommunication Services': ['Télécom', 'smartphone'], 'Rent': ['Logement', 'home'],
   'Utilities': ['Hydro/Services', 'zap'], 'Transfer': ['Cash/Virements', 'trending-down'],
@@ -107,19 +127,21 @@ const CAT_MAP: Record<string, [string, string]> = {
 function categorize(cats: string[]): [string, string] {
   if (!cats?.length) return ['Autre', 'folder']
   for (const c of cats) { const m = CAT_MAP[c]; if (m) return m }
-  const s = cats.join(' ')
-  if (s.includes('Food') || s.includes('Restaurant')) return ['Bouffe/Resto', 'utensils']
-  if (s.includes('Grocer')) return ['Épicerie', 'shopping-cart']
-  if (s.includes('Gas') || s.includes('Fuel')) return ['Gaz', 'droplet']
-  if (s.includes('Shop') || s.includes('Retail')) return ['Shopping', 'shopping-bag']
-  if (s.includes('Transfer') || s.includes('Payment')) return ['Cash/Virements', 'trending-down']
-  if (s.includes('Payroll') || s.includes('Deposit') || s.includes('Income')) return ['Revenu', 'briefcase']
-  if (s.includes('Subscription') || s.includes('Netflix') || s.includes('Spotify')) return ['Abonnements', 'monitor']
-  if (s.includes('Transport') || s.includes('Travel') || s.includes('Uber')) return ['Transport', 'map']
-  if (s.includes('Gym') || s.includes('Fitness')) return ['Gym', 'zap']
-  if (s.includes('Health') || s.includes('Medical')) return ['Santé', 'heart']
-  if (s.includes('Rent') || s.includes('Mortgage')) return ['Logement', 'home']
-  if (s.includes('Util') || s.includes('Hydro') || s.includes('Electric')) return ['Hydro/Services', 'zap']
+  const s = cats.join(' ').toUpperCase()
+  if (s.includes('FOOD') || s.includes('RESTAURANT')) return ['Bouffe/Resto', 'utensils']
+  if (s.includes('GROCER')) return ['Épicerie', 'shopping-cart']
+  if (s.includes('GAS') || s.includes('FUEL')) return ['Gaz', 'droplet']
+  if (s.includes('SHOP') || s.includes('RETAIL')) return ['Shopping', 'shopping-bag']
+  if (s.includes('TRANSFER') || s.includes('PAYMENT')) return ['Cash/Virements', 'trending-down']
+  if (s.includes('PAYROLL') || s.includes('DEPOSIT') || s.includes('INCOME')) return ['Revenu', 'briefcase']
+  if (s.includes('SUBSCRIPTION') || s.includes('NETFLIX') || s.includes('SPOTIFY')) return ['Abonnements', 'monitor']
+  if (s.includes('TRANSPORT') || s.includes('TRAVEL') || s.includes('UBER')) return ['Transport', 'map']
+  if (s.includes('GYM') || s.includes('FITNESS')) return ['Gym', 'zap']
+  if (s.includes('HEALTH') || s.includes('MEDICAL')) return ['Santé', 'heart']
+  if (s.includes('RENT') || s.includes('MORTGAGE')) return ['Logement', 'home']
+  if (s.includes('UTIL') || s.includes('HYDRO') || s.includes('ELECTRIC')) return ['Hydro/Services', 'zap']
+  if (s.includes('INSURANCE')) return ['Assurance', 'shield']
+  if (s.includes('LOAN')) return ['Logement', 'home']
   return ['Autre', 'folder']
 }
 
