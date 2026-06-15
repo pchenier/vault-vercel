@@ -7,7 +7,7 @@ const Logo = ({ height = 28 }: { height?: number }) => (
     <rect x="7" y="6" width="5" height="20" rx="2" fill="#F0F4F8"/>
     <rect x="7" y="6" width="16" height="5" rx="2" fill="#F0F4F8"/>
     <rect x="7" y="14" width="12" height="4" rx="2" fill="#F0F4F8"/>
-    <circle cx="26" cy="8.5" r="3.5" fill="#60A5FA"/>
+    <circle cx="26" cy="8.5" r="3.5" fill="#b8f566"/>
   </svg>
 )
 
@@ -17,7 +17,7 @@ const FaviconV = () => (
     <rect x="7" y="6" width="5" height="20" rx="2" fill="#F0F4F8"/>
     <rect x="7" y="6" width="16" height="5" rx="2" fill="#F0F4F8"/>
     <rect x="7" y="14" width="12" height="4" rx="2" fill="#F0F4F8"/>
-    <circle cx="26" cy="8.5" r="3.5" fill="#60A5FA"/>
+    <circle cx="26" cy="8.5" r="3.5" fill="#b8f566"/>
   </svg>
 )
 
@@ -379,8 +379,8 @@ export default function LandingPage() {
         <nav>
           <a href="/" style={{textDecoration:'none'}}><Logo height={28} /></a>
           <div className="nav-actions">
-            <a href="/login" className="btn-ghost">Sign In</a>
-            <a href="/register" className="btn-primary">Start Free</a>
+            <a href="https://app.fiscit.com/login" className="btn-ghost">Sign In</a>
+            <a href="https://app.fiscit.com/register" className="btn-primary">Start Free</a>
           </div>
         </nav>
 
@@ -393,8 +393,8 @@ export default function LandingPage() {
               Connect your bank, your gym, your Google apps and finally see the full picture.
             </p>
             <div className="hero-ctas">
-              <a href="/register" className="btn-hero-primary">Start for free</a>
-              <a href="/login" className="btn-hero-ghost">Sign in</a>
+              <a href="https://app.fiscit.com/register" className="btn-hero-primary">Start for free</a>
+              <a href="https://app.fiscit.com/login" className="btn-hero-ghost">Sign in</a>
             </div>
             <div className="social-proof">
               Join <span>early adopters</span> who ditched five apps for one
@@ -443,7 +443,7 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="import-cta-wrap">
-              <a href="/register" className="btn-google">
+              <a href="https://app.fiscit.com/register" className="btn-google">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -477,7 +477,7 @@ export default function LandingPage() {
                   <li key={i}><Check />{f}</li>
                 ))}
               </ul>
-              <a href="/register" className="pricing-cta">Start Free Trial</a>
+              <a href="https://app.fiscit.com/register" className="pricing-cta">Start Free Trial</a>
               <div className="pricing-note">14 day free trial. No credit card required.</div>
             </div>
           </div>
@@ -518,7 +518,7 @@ export default function LandingPage() {
             <Logo height={24} />
             <div className="footer-tagline">Your whole life. One dashboard.</div>
           </div>
-          <a href="/login" className="footer-link">Sign in</a>
+          <a href="https://app.fiscit.com/login" className="footer-link">Sign in</a>
         </footer>
       </div>
     </>

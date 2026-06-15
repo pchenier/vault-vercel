@@ -29,7 +29,7 @@ export default function Icon() {
           width: 7,
           height: 7,
           borderRadius: 7,
-          background: '#60A5FA',
+          background: '#b8f566',
           position: 'absolute',
           top: 3,
           right: 0,
