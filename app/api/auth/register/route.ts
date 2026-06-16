@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
-    const { email, password, newsletter } = await request.json()
+    const { email, password, name, newsletter } = await request.json()
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
     }
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       const verifyToken = crypto.randomBytes(32).toString('hex')
       await supabaseAdmin
         .from('vault_users')
-        .update({ verify_token: verifyToken, password_hash: await bcrypt.hash(password, 12), newsletter: !!newsletter })
+        .update({ verify_token: verifyToken, password_hash: await bcrypt.hash(password, 12), name: name?.trim() || undefined, newsletter: !!newsletter })
         .eq('id', existing.id)
       await supabaseAdmin
         .from('email_verifications')
@@ -77,6 +77,7 @@ export async function POST(request: Request) {
       .insert({
         email: email.toLowerCase().trim(),
         password_hash: hash,
+        name: name?.trim() || null,
         email_confirmed: false,
         newsletter: !!newsletter,
         verify_token: verifyToken,

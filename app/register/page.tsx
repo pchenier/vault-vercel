@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
-  const [confirmEmail, setConfirmEmail] = useState('')
+  const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [newsletter, setNewsletter] = useState(true)
@@ -15,10 +15,6 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (email.toLowerCase().trim() !== confirmEmail.toLowerCase().trim()) {
-      setError('Email addresses do not match')
-      return
-    }
     if (password !== confirm) {
       setError('Passwords do not match')
       return
@@ -32,7 +28,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, newsletter })
+        body: JSON.stringify({ email, password, name, newsletter })
       })
       const data = await res.json()
       if (data.ok) {
@@ -226,6 +222,17 @@ export default function RegisterPage() {
           {error && <div className="error">{error}</div>}
 
           <form onSubmit={handleSubmit}>
+            <label htmlFor="name">What should we call you?</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              autoComplete="given-name"
+              placeholder="Your name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
             <label htmlFor="email">Email</label>
             <input
               id="email"
@@ -236,17 +243,6 @@ export default function RegisterPage() {
               placeholder="you@example.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
-            />
-            <label htmlFor="confirmEmail">Confirm Email</label>
-            <input
-              id="confirmEmail"
-              name="confirmEmail"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={confirmEmail}
-              onChange={e => setConfirmEmail(e.target.value)}
             />
             <label htmlFor="password">Password</label>
             <input
