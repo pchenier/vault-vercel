@@ -4,7 +4,6 @@ import Link from 'next/link'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
-  const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [newsletter, setNewsletter] = useState(true)
@@ -28,7 +27,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, newsletter })
+        body: JSON.stringify({ email, password, newsletter })
       })
       const data = await res.json()
       if (data.ok) {
@@ -222,17 +221,6 @@ export default function RegisterPage() {
           {error && <div className="error">{error}</div>}
 
           <form onSubmit={handleSubmit}>
-            <label htmlFor="name">What should we call you?</label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              required
-              autoComplete="given-name"
-              placeholder="Your name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-            />
             <label htmlFor="email">Email</label>
             <input
               id="email"
