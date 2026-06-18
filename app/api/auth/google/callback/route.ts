@@ -4,13 +4,16 @@ import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET(request: NextRequest) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://fiscit.com'
   const { searchParams } = request.nextUrl
   const code = searchParams.get('code')
   const error = searchParams.get('error')
 
   if (error || !code) {
-    return NextResponse.redirect('https://vault-vercel.vercel.app/vault.html?gcal=error')
+    return NextResponse.redirect(`${baseUrl}/vault.html?gcal=error`)
   }
+
+  const redirectUri = `${baseUrl}/api/auth/google/callback`
 
   // Exchange code for tokens
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -20,13 +23,13 @@ export async function GET(request: NextRequest) {
       code,
       client_id: process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      redirect_uri: 'https://vault-vercel.vercel.app/api/auth/google/callback',
+      redirect_uri: redirectUri,
       grant_type: 'authorization_code',
     }),
   })
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect('https://vault-vercel.vercel.app/vault.html?gcal=error')
+    return NextResponse.redirect(`${baseUrl}/vault.html?gcal=error`)
   }
 
   const tokens = await tokenRes.json()
@@ -34,9 +37,9 @@ export async function GET(request: NextRequest) {
   // Get JWT user
   const cookieStore = await cookies()
   const jwt = cookieStore.get(COOKIE_NAME)?.value
-  if (!jwt) return NextResponse.redirect('https://vault-vercel.vercel.app/login')
+  if (!jwt) return NextResponse.redirect(`${baseUrl}/login`)
   const payload = verifyToken(jwt)
-  if (!payload) return NextResponse.redirect('https://vault-vercel.vercel.app/login')
+  if (!payload) return NextResponse.redirect(`${baseUrl}/login`)
 
   // Store tokens in vault_credentials
   await supabaseAdmin
@@ -50,5 +53,5 @@ export async function GET(request: NextRequest) {
     })
     .eq('user_id', payload.sub)
 
-  return NextResponse.redirect('https://vault-vercel.vercel.app/vault.html?gcal=connected')
+  return NextResponse.redirect(`${baseUrl}/vault.html?gcal=connected`)
 }
