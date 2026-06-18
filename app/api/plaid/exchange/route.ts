@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { run } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,10 +28,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: data.error_message || 'Exchange failed' }, { status: 400 })
     }
 
-    await supabaseAdmin
-      .from('vault_credentials')
-      .update({ plaid_token: data.access_token, updated_at: new Date().toISOString() })
-      .eq('user_id', payload.sub)
+    await run(
+      'UPDATE vault_credentials SET plaid_token = $1, updated_at = NOW() WHERE user_id = $2',
+      [data.access_token, Number(payload.sub)]
+    )
 
     return NextResponse.json({ ok: true })
   } catch (e: unknown) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne, run } from '@/lib/postgres'
 import { Resend } from 'resend'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
@@ -9,16 +9,16 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json()
+    const { email: rawEmail } = await request.json()
+    const email = rawEmail?.toLowerCase().trim()
     if (!email) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 })
     }
 
-    const { data: user } = await supabaseAdmin
-      .from('vault_users')
-      .select('id, email, email_confirmed')
-      .eq('email', email.toLowerCase().trim())
-      .single()
+    const user = await queryOne<{ id: number; email: string; email_confirmed: boolean }>(
+      'SELECT id, email, email_confirmed FROM users WHERE email = $1',
+      [email]
+    )
 
     if (!user) {
       return NextResponse.json({ ok: true })
@@ -30,20 +30,23 @@ export async function POST(request: Request) {
 
     const verifyToken = crypto.randomBytes(32).toString('hex')
 
-    await supabaseAdmin
-      .from('vault_users')
-      .update({ verify_token: verifyToken })
-      .eq('id', user.id)
+    await run(
+      'UPDATE users SET verify_token = $1 WHERE id = $2',
+      [verifyToken, user.id]
+    )
 
-    await supabaseAdmin.from('email_verifications').delete().eq('user_id', user.id)
-    await supabaseAdmin.from('email_verifications').insert({ user_id: user.id, token: verifyToken })
+    await run('DELETE FROM email_verifications WHERE user_id = $1', [user.id])
+    await run(
+      'INSERT INTO email_verifications (user_id, token) VALUES ($1, $2)',
+      [user.id, verifyToken]
+    )
 
     const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://fiscit.com'}/verify?token=${verifyToken}`
     if (resend) {
       try {
         await resend.emails.send({
           from: 'Fiscit <no-reply@fiscit.com>',
-          to: email.toLowerCase().trim(),
+          to: email,
           subject: 'Confirm your Fiscit account',
           html: `<div style="max-width:480px;margin:0 auto;font-family:Inter,-apple-system,sans-serif;background:#111;border-radius:16px;padding:2.5rem;text-align:center;color:#f4f4f5">
 <div style="font-size:1.5rem;font-weight:700;color:#4ade80;margin-bottom:0.5rem">Fiscit</div>

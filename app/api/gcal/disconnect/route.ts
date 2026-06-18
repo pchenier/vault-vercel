@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { run } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,15 +12,14 @@ export async function POST() {
   const payload = verifyToken(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { error } = await supabaseAdmin
-    .from('vault_credentials')
-    .update({
-      google_access_token: null,
-      google_refresh_token: null,
-      google_token_expiry: null,
-    })
-    .eq('user_id', payload.sub)
+  await run(
+    `UPDATE vault_credentials SET
+      google_access_token = NULL,
+      google_refresh_token = NULL,
+      google_token_expiry = NULL
+    WHERE user_id = $1`,
+    [Number(payload.sub)]
+  )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

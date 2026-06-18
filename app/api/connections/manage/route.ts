@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne, run } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,11 +24,11 @@ export async function GET() {
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const allKeys = Object.values(CONNECTIONS).flat()
-  const { data: creds } = await supabaseAdmin
-    .from('vault_credentials')
-    .select(allKeys.join(','))
-    .eq('user_id', payload.sub)
-    .single()
+  const selectCols = allKeys.join(', ')
+  const creds = await queryOne<Record<string, unknown>>(
+    `SELECT ${selectCols} FROM vault_credentials WHERE user_id = $1`,
+    [Number(payload.sub)]
+  )
 
   const status: Record<string, boolean> = {}
   for (const [name, keys] of Object.entries(CONNECTIONS)) {
@@ -62,12 +62,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'No keys provided' }, { status: 400 })
   }
 
-  const { error } = await supabaseAdmin
-    .from('vault_credentials')
-    .update(update)
-    .eq('user_id', payload.sub)
+  // Build SET clause dynamically
+  const setClauses = Object.keys(update).map((key, i) => `${key} = $${i + 1}`).join(', ')
+  const values = [...Object.values(update), Number(payload.sub)]
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await run(
+    `UPDATE vault_credentials SET ${setClauses} WHERE user_id = $${values.length}`,
+    values
+  )
+
   return NextResponse.json({ ok: true })
 }
 
@@ -89,11 +92,13 @@ export async function DELETE(req: Request) {
   const nulls: Record<string, null> = {}
   for (const key of CONNECTIONS[name]) nulls[key] = null
 
-  const { error } = await supabaseAdmin
-    .from('vault_credentials')
-    .update(nulls)
-    .eq('user_id', payload.sub)
+  const setClauses = Object.keys(nulls).map((key, i) => `${key} = $${i + 1}`).join(', ')
+  const values = [...Object.values(nulls), Number(payload.sub)]
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await run(
+    `UPDATE vault_credentials SET ${setClauses} WHERE user_id = $${values.length}`,
+    values
+  )
+
   return NextResponse.json({ ok: true })
 }

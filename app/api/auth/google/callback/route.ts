@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { run } from '@/lib/postgres'
 
 export async function GET(request: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://fiscit.com'
@@ -42,16 +42,21 @@ export async function GET(request: NextRequest) {
   if (!payload) return NextResponse.redirect(`${baseUrl}/login`)
 
   // Store tokens in vault_credentials
-  await supabaseAdmin
-    .from('vault_credentials')
-    .update({
-      google_access_token: tokens.access_token,
-      google_refresh_token: tokens.refresh_token || null,
-      google_token_expiry: tokens.expires_in
+  await run(
+    `UPDATE vault_credentials SET
+      google_access_token = $1,
+      google_refresh_token = $2,
+      google_token_expiry = $3
+    WHERE user_id = $4`,
+    [
+      tokens.access_token,
+      tokens.refresh_token || null,
+      tokens.expires_in
         ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
         : null,
-    })
-    .eq('user_id', payload.sub)
+      Number(payload.sub),
+    ]
+  )
 
   return NextResponse.redirect(`${baseUrl}/vault.html?gcal=connected`)
 }

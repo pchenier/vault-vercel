@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne, run } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
 
@@ -88,13 +88,12 @@ export async function GET() {
   const payload = verifyToken(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: creds } = await supabaseAdmin
-    .from('vault_credentials')
-    .select('wealthsimple_data')
-    .eq('user_id', payload.sub)
-    .single()
+  const creds = await queryOne<{ wealthsimple_data: unknown }>(
+    'SELECT wealthsimple_data FROM vault_credentials WHERE user_id = $1',
+    [Number(payload.sub)]
+  )
 
-  const investments = creds?.wealthsimple_data || []
+  const investments = (creds?.wealthsimple_data as InvestmentRow[]) || []
   return NextResponse.json({
     connected: investments.length > 0,
     investments,
@@ -133,13 +132,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Could not parse CSV. Expected columns: Symbol, Quantity, Price...' }, { status: 400 })
   }
 
-  // Save to Supabase
-  const { error } = await supabaseAdmin
-    .from('vault_credentials')
-    .update({ wealthsimple_data: investments })
-    .eq('user_id', payload.sub)
+  // Save to Postgres
+  await run(
+    'UPDATE vault_credentials SET wealthsimple_data = $1 WHERE user_id = $2',
+    [JSON.stringify(investments), Number(payload.sub)]
+  )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true, count: investments.length, investments })
 }
 
@@ -150,11 +148,10 @@ export async function DELETE() {
   const payload = verifyToken(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { error } = await supabaseAdmin
-    .from('vault_credentials')
-    .update({ wealthsimple_data: null })
-    .eq('user_id', payload.sub)
+  await run(
+    'UPDATE vault_credentials SET wealthsimple_data = NULL WHERE user_id = $1',
+    [Number(payload.sub)]
+  )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

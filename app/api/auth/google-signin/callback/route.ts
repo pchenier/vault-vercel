@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne, run } from '@/lib/postgres'
 import { signToken, COOKIE_NAME } from '@/lib/auth-jwt'
 
 export async function GET(request: NextRequest) {
@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error')
 
   if (error || !code) {
+    console.error('Google auth callback: error or no code', { error, code: !!code })
     return NextResponse.redirect(`${baseUrl}/login?error=google_auth_failed`)
   }
 
@@ -28,7 +29,8 @@ export async function GET(request: NextRequest) {
   })
 
   if (!tokenRes.ok) {
-    console.error('Token exchange failed:', await tokenRes.text())
+    const errBody = await tokenRes.text()
+    console.error('Token exchange failed:', tokenRes.status, errBody)
     return NextResponse.redirect(`${baseUrl}/login?error=google_auth_failed`)
   }
 
@@ -40,7 +42,8 @@ export async function GET(request: NextRequest) {
   })
 
   if (!userRes.ok) {
-    console.error('User info fetch failed:', await userRes.text())
+    const errBody = await userRes.text()
+    console.error('User info fetch failed:', userRes.status, errBody)
     return NextResponse.redirect(`${baseUrl}/login?error=google_auth_failed`)
   }
 
@@ -53,13 +56,12 @@ export async function GET(request: NextRequest) {
   }
 
   // Check if user exists
-  const { data: existingUser } = await supabaseAdmin
-    .from('vault_users')
-    .select('id, email, email_confirmed')
-    .eq('email', email)
-    .single()
+  const existingUser = await queryOne<{ id: number; email: string; email_confirmed: boolean; name: string | null }>(
+    'SELECT id, email, email_confirmed, name FROM users WHERE email = $1',
+    [email]
+  )
 
-  let userId: string
+  let userId: number
 
   if (existingUser) {
     // Existing user — log them in
@@ -67,58 +69,43 @@ export async function GET(request: NextRequest) {
 
     // If they weren't email-confirmed yet, confirm them now (Google verified the email)
     if (!existingUser.email_confirmed) {
-      await supabaseAdmin
-        .from('vault_users')
-        .update({ email_confirmed: true })
-        .eq('id', userId)
+      await run('UPDATE users SET email_confirmed = true WHERE id = $1', [userId])
     }
 
     // Update name if they don't have one
-    if (name && !existingUser.email) {
-      await supabaseAdmin
-        .from('vault_users')
-        .update({ name })
-        .eq('id', userId)
+    if (name && !existingUser.name) {
+      await run('UPDATE users SET name = $1 WHERE id = $2', [name, userId])
     }
   } else {
     // New user — create account with email_confirmed=true (Google verified)
-    const { data: newUser, error: createError } = await supabaseAdmin
-      .from('vault_users')
-      .insert({
-        email,
-        password_hash: null,
-        name,
-        email_confirmed: true,
-        newsletter: false,
-        verify_token: null,
-      })
-      .select('id, email')
-      .single()
+    const newUser = await queryOne<{ id: number; email: string }>(
+      `INSERT INTO users (email, password_hash, name, email_confirmed, newsletter, verify_token, google_id)
+       VALUES ($1, NULL, $2, true, false, NULL, $3)
+       RETURNING id, email`,
+      [email, name, googleUser.sub || null]
+    )
 
-    if (createError || !newUser) {
-      console.error('Failed to create user:', createError)
+    if (!newUser) {
+      console.error('Failed to create user')
       return NextResponse.redirect(`${baseUrl}/login?error=account_creation_failed`)
     }
 
     userId = newUser.id
 
     // Create vault_credentials row
-    await supabaseAdmin
-      .from('vault_credentials')
-      .insert({ user_id: userId })
+    await run('INSERT INTO vault_credentials (user_id) VALUES ($1)', [userId])
   }
 
   // Check if user has plaid_token to determine redirect
-  const { data: creds } = await supabaseAdmin
-    .from('vault_credentials')
-    .select('plaid_token')
-    .eq('user_id', userId)
-    .single()
+  const creds = await queryOne<{ plaid_token: string | null }>(
+    'SELECT plaid_token FROM vault_credentials WHERE user_id = $1',
+    [userId]
+  )
 
   const redirectTo = creds?.plaid_token ? 'https://app.fiscit.com/' : `${baseUrl}/onboarding`
 
   // Sign JWT and set cookie
-  const token = signToken(userId, email)
+  const token = signToken(String(userId), email)
   const response = NextResponse.redirect(redirectTo)
   response.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,

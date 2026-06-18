@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne, run } from '@/lib/postgres'
 import bcrypt from 'bcryptjs'
 
 export const dynamic = 'force-dynamic'
@@ -24,25 +24,26 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
       }
       const hash = await bcrypt.hash(newPassword, 12)
-      await supabaseAdmin
-        .from('vault_users')
-        .update({ password_hash: hash, updated_at: new Date().toISOString() })
-        .eq('id', payload.sub)
+      await run(
+        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+        [hash, Number(payload.sub)]
+      )
       updates.push('password')
     }
 
     const credUpdates: Record<string, unknown> = {}
     if (wiseToken !== undefined) { credUpdates.wise_token = wiseToken; updates.push('wiseToken') }
     if (wiseProfile !== undefined) { credUpdates.wise_profile = wiseProfile; updates.push('wiseProfile') }
-    if (usdToCad !== undefined) { credUpdates.usd_to_cad = parseFloat(usdToCad); updates.push('usdToCad') }
-    if (startDate !== undefined) { credUpdates.start_date = startDate; updates.push('startDate') }
+    if (usdToCad !== undefined) { credUpdates.usd_to_cad = String(usdToCad); updates.push('usdToCad') }
+    if (startDate !== undefined) { credUpdates.start_date = String(startDate); updates.push('startDate') }
 
     if (Object.keys(credUpdates).length > 0) {
-      credUpdates.updated_at = new Date().toISOString()
-      await supabaseAdmin
-        .from('vault_credentials')
-        .update(credUpdates)
-        .eq('user_id', payload.sub)
+      const setClauses = Object.keys(credUpdates).map((key, i) => `${key} = $${i + 1}`).join(', ')
+      const values = [...Object.values(credUpdates), Number(payload.sub)]
+      await run(
+        `UPDATE vault_credentials SET ${setClauses}, updated_at = NOW() WHERE user_id = $${values.length}`,
+        values
+      )
     }
 
     if (updates.length === 0) {

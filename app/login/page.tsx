@@ -12,6 +12,22 @@ export default function LoginPage() {
   const [resendSent, setResendSent] = useState(false)
 
   useEffect(() => {
+    // Show error from URL params (e.g. google_auth_failed)
+    const params = new URLSearchParams(window.location.search)
+    const err = params.get('error')
+    if (err) {
+      const messages: Record<string, string> = {
+        google_auth_failed: 'Google sign in failed. Please try again.',
+        google_no_email: 'No email found in your Google account.',
+        account_creation_failed: 'Failed to create account. Please try again.',
+      }
+      setError(messages[err] || 'An error occurred. Please try again.')
+      // Clean URL
+      window.history.replaceState({}, '', '/login')
+    }
+  }, [])
+
+  useEffect(() => {
     // Auto-redirect if already logged in
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())

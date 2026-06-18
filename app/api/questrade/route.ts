@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne, run } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,32 +43,31 @@ export async function GET() {
   const payload = verifyToken(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: creds } = await supabaseAdmin
-    .from('vault_credentials')
-    .select('questrade_token, questrade_token_expiry, questrade_access_token, questrade_api_server, questrade_refresh_token')
-    .eq('user_id', payload.sub)
-    .single()
+  const creds = await queryOne<{ questrade_token: string | null; questrade_token_expiry: Date | null; questrade_access_token: string | null; questrade_api_server: string | null; questrade_refresh_token: string | null }>(
+    'SELECT questrade_token, questrade_token_expiry, questrade_access_token, questrade_api_server, questrade_refresh_token FROM vault_credentials WHERE user_id = $1',
+    [Number(payload.sub)]
+  )
 
   if (!creds?.questrade_refresh_token && !creds?.questrade_token) {
     return NextResponse.json({ connected: false, accounts: [], positions: [] })
   }
 
   try {
-    let accessToken = creds.questrade_access_token
-    let apiServer = creds.questrade_api_server
-    let refreshToken = creds.questrade_refresh_token || creds.questrade_token
+    let accessToken = creds!.questrade_access_token
+    let apiServer = creds!.questrade_api_server
+    let refreshToken = creds!.questrade_refresh_token || creds!.questrade_token
 
     // Check if access token is still valid (5 min buffer)
-    const expiry = creds.questrade_token_expiry ? new Date(creds.questrade_token_expiry) : null
+    const expiry = creds!.questrade_token_expiry ? new Date(creds!.questrade_token_expiry) : null
     if (!accessToken || !apiServer || (expiry && Date.now() > expiry.getTime() - 300000)) {
       // Need to refresh — redeem the refresh token
       let tokenData
       try {
-        tokenData = await redeemToken(refreshToken, false)
+        tokenData = await redeemToken(refreshToken!, false)
       } catch {
         // Try practice API
         try {
-          tokenData = await redeemToken(refreshToken, true)
+          tokenData = await redeemToken(refreshToken!, true)
         } catch (e: any) {
           return NextResponse.json({ connected: false, error: e.message, accounts: [], positions: [] })
         }
@@ -80,19 +79,19 @@ export async function GET() {
       const newExpiry = new Date(Date.now() + (tokenData.expires_in || 300) * 1000).toISOString()
 
       // Save new tokens
-      await supabaseAdmin
-        .from('vault_credentials')
-        .update({
-          questrade_access_token: accessToken,
-          questrade_api_server: apiServer,
-          questrade_refresh_token: newRefresh,
-          questrade_token_expiry: newExpiry,
-        })
-        .eq('user_id', payload.sub)
+      await run(
+        `UPDATE vault_credentials SET
+          questrade_access_token = $1,
+          questrade_api_server = $2,
+          questrade_refresh_token = $3,
+          questrade_token_expiry = $4
+        WHERE user_id = $5`,
+        [accessToken, apiServer, newRefresh, newExpiry, Number(payload.sub)]
+      )
     }
 
     // Fetch accounts
-    const acctsData = await qtFetch(apiServer, accessToken, '/v1/accounts')
+    const acctsData = await qtFetch(apiServer!, accessToken!, '/v1/accounts')
     const accounts = (acctsData.accounts || []).map((a: any) => ({
       id: a.number,
       name: a.type === 'Margin' ? 'Questrade Margin' : `Questrade ${a.type}`,
@@ -105,7 +104,7 @@ export async function GET() {
     const allPositions: any[] = []
     for (const acct of acctsData.accounts || []) {
       try {
-        const posData = await qtFetch(apiServer, accessToken, `/v1/accounts/${acct.number}/positions`)
+        const posData = await qtFetch(apiServer!, accessToken!, `/v1/accounts/${acct.number}/positions`)
         allPositions.push(...(posData.positions || []).map((p: any) => ({
           accountId: acct.number,
           symbol: p.symbol,
@@ -127,7 +126,7 @@ export async function GET() {
     let balances: any[] = []
     try {
       for (const acct of acctsData.accounts || []) {
-        const balData = await qtFetch(apiServer, accessToken, `/v1/accounts/${acct.number}/balances`)
+        const balData = await qtFetch(apiServer!, accessToken!, `/v1/accounts/${acct.number}/balances`)
         balances.push(...(balData.balances || []).map((b: any) => ({
           accountId: acct.number,
           type: b.currency,
@@ -182,18 +181,17 @@ export async function POST(req: Request) {
   const expiry = new Date(Date.now() + (tokenData.expires_in || 300) * 1000).toISOString()
 
   // Save tokens
-  const { error } = await supabaseAdmin
-    .from('vault_credentials')
-    .update({
-      questrade_token: token,
-      questrade_refresh_token: newRefresh,
-      questrade_access_token: accessToken,
-      questrade_api_server: apiServer,
-      questrade_token_expiry: expiry,
-    })
-    .eq('user_id', payload.sub)
+  await run(
+    `UPDATE vault_credentials SET
+      questrade_token = $1,
+      questrade_refresh_token = $2,
+      questrade_access_token = $3,
+      questrade_api_server = $4,
+      questrade_token_expiry = $5
+    WHERE user_id = $6`,
+    [token, newRefresh, accessToken, apiServer, expiry, Number(payload.sub)]
+  )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true, practice: isPractice })
 }
 
@@ -205,17 +203,16 @@ export async function DELETE() {
   const payload = verifyToken(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { error } = await supabaseAdmin
-    .from('vault_credentials')
-    .update({
-      questrade_token: null,
-      questrade_token_expiry: null,
-      questrade_access_token: null,
-      questrade_api_server: null,
-      questrade_refresh_token: null,
-    })
-    .eq('user_id', payload.sub)
+  await run(
+    `UPDATE vault_credentials SET
+      questrade_token = NULL,
+      questrade_token_expiry = NULL,
+      questrade_access_token = NULL,
+      questrade_api_server = NULL,
+      questrade_refresh_token = NULL
+    WHERE user_id = $1`,
+    [Number(payload.sub)]
+  )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

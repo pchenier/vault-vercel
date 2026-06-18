@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { signToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import bcrypt from 'bcryptjs'
+import { queryOne, run } from '@/lib/postgres'
 import { Resend } from 'resend'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
@@ -11,7 +10,8 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name, newsletter } = await request.json()
+    const { email: rawEmail, password, name, newsletter } = await request.json()
+    const email = rawEmail?.toLowerCase().trim()
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
     }
@@ -19,11 +19,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
     }
 
-    const { data: existing } = await supabaseAdmin
-      .from('vault_users')
-      .select('id, email_confirmed')
-      .eq('email', email.toLowerCase().trim())
-      .single()
+    const existing = await queryOne<{ id: number; email_confirmed: boolean }>(
+      'SELECT id, email_confirmed FROM users WHERE email = $1',
+      [email]
+    )
 
     if (existing) {
       if (existing.email_confirmed) {
@@ -31,17 +30,15 @@ export async function POST(request: Request) {
       }
       // Unconfirmed user — resend verification
       const verifyToken = crypto.randomBytes(32).toString('hex')
-      await supabaseAdmin
-        .from('vault_users')
-        .update({ verify_token: verifyToken, password_hash: await bcrypt.hash(password, 12), name: name?.trim() || undefined, newsletter: !!newsletter })
-        .eq('id', existing.id)
-      await supabaseAdmin
-        .from('email_verifications')
-        .delete()
-        .eq('user_id', existing.id)
-      await supabaseAdmin
-        .from('email_verifications')
-        .insert({ user_id: existing.id, token: verifyToken })
+      await run(
+        'UPDATE users SET verify_token = $1, password_hash = $2, name = COALESCE($3, name), newsletter = $4 WHERE id = $5',
+        [verifyToken, await bcrypt.hash(password, 12), name?.trim() || null, !!newsletter, existing.id]
+      )
+      await run('DELETE FROM email_verifications WHERE user_id = $1', [existing.id])
+      await run(
+        'INSERT INTO email_verifications (user_id, token) VALUES ($1, $2)',
+        [existing.id, verifyToken]
+      )
 
       // Send verification email
       const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://fiscit.com'}/verify?token=${verifyToken}`
@@ -49,7 +46,7 @@ export async function POST(request: Request) {
         try {
           await resend.emails.send({
             from: 'Fiscit <no-reply@fiscit.com>',
-            to: email.toLowerCase().trim(),
+            to: email,
             subject: 'Confirm your Fiscit account',
             html: `<div style="max-width:480px;margin:0 auto;font-family:Inter,-apple-system,sans-serif;background:#111;border-radius:16px;padding:2.5rem;text-align:center;color:#f4f4f5">
 <div style="font-size:1.5rem;font-weight:700;color:#4ade80;margin-bottom:0.5rem">Fiscit</div>
@@ -72,26 +69,25 @@ export async function POST(request: Request) {
     const hash = await bcrypt.hash(password, 12)
     const verifyToken = crypto.randomBytes(32).toString('hex')
 
-    const { data: user, error } = await supabaseAdmin
-      .from('vault_users')
-      .insert({
-        email: email.toLowerCase().trim(),
-        password_hash: hash,
-        name: name?.trim() || null,
-        email_confirmed: false,
-        newsletter: !!newsletter,
-        verify_token: verifyToken,
-      })
-      .select('id, email')
-      .single()
+    const user = await queryOne<{ id: number; email: string }>(
+      `INSERT INTO users (email, password_hash, name, email_confirmed, newsletter, verify_token)
+       VALUES ($1, $2, $3, false, $4, $5)
+       RETURNING id, email`,
+      [email, hash, name?.trim() || null, !!newsletter, verifyToken]
+    )
 
-    if (error || !user) {
-      console.error('Failed to create user:', error)
+    if (!user) {
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
     }
 
-    await supabaseAdmin.from('vault_credentials').insert({ user_id: user.id })
-    await supabaseAdmin.from('email_verifications').insert({ user_id: user.id, token: verifyToken })
+    // Create vault_credentials row
+    await run('INSERT INTO vault_credentials (user_id) VALUES ($1)', [user.id])
+
+    // Create email verification entry
+    await run(
+      'INSERT INTO email_verifications (user_id, token) VALUES ($1, $2)',
+      [user.id, verifyToken]
+    )
 
     // Send verification email
     const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://fiscit.com'}/verify?token=${verifyToken}`
@@ -99,7 +95,7 @@ export async function POST(request: Request) {
       try {
         await resend.emails.send({
           from: 'Fiscit <no-reply@fiscit.com>',
-          to: email.toLowerCase().trim(),
+          to: email,
           subject: 'Confirm your Fiscit account',
           html: `<div style="max-width:480px;margin:0 auto;font-family:Inter,-apple-system,sans-serif;background:#111;border-radius:16px;padding:2.5rem;text-align:center;color:#f4f4f5">
 <div style="font-size:1.5rem;font-weight:700;color:#4ade80;margin-bottom:0.5rem">Fiscit</div>

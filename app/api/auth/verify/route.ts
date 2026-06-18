@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne, run } from '@/lib/postgres'
 import { signToken, COOKIE_NAME } from '@/lib/auth-jwt'
 
 export const dynamic = 'force-dynamic'
@@ -14,11 +14,10 @@ export async function GET(request: Request) {
     }
 
     // Find the verification token
-    const { data: verification } = await supabaseAdmin
-      .from('email_verifications')
-      .select('id, user_id, token, expires_at')
-      .eq('token', token)
-      .single()
+    const verification = await queryOne<{ id: number; user_id: number; token: string; expires_at: Date }>(
+      'SELECT id, user_id, token, expires_at FROM email_verifications WHERE token = $1',
+      [token]
+    )
 
     if (!verification) {
       return NextResponse.redirect(new URL('/login?error=invalid_token', request.url))
@@ -30,29 +29,28 @@ export async function GET(request: Request) {
     }
 
     // Mark user as confirmed
-    const { data: user } = await supabaseAdmin
-      .from('vault_users')
-      .update({ email_confirmed: true, verify_token: null, updated_at: new Date().toISOString() })
-      .eq('id', verification.user_id)
-      .select('id, email')
-      .single()
+    const user = await queryOne<{ id: number; email: string }>(
+      `UPDATE users SET email_confirmed = true, verify_token = NULL, updated_at = NOW() 
+       WHERE id = $1 
+       RETURNING id, email`,
+      [verification.user_id]
+    )
 
     if (!user) {
       return NextResponse.redirect(new URL('/login?error=user_not_found', request.url))
     }
 
     // Delete the verification token
-    await supabaseAdmin.from('email_verifications').delete().eq('id', verification.id)
+    await run('DELETE FROM email_verifications WHERE id = $1', [verification.id])
 
     // Check if user has Plaid credentials (onboarding needed?)
-    const { data: creds } = await supabaseAdmin
-      .from('vault_credentials')
-      .select('plaid_token')
-      .eq('user_id', user.id)
-      .single()
+    const creds = await queryOne<{ plaid_token: string | null }>(
+      'SELECT plaid_token FROM vault_credentials WHERE user_id = $1',
+      [user.id]
+    )
 
     // Sign in the user automatically
-    const jwt = signToken(user.id, user.email)
+    const jwt = signToken(String(user.id), user.email)
     const redirectTo = creds?.plaid_token ? 'https://app.fiscit.com/' : '/onboarding'
 
     const response = NextResponse.redirect(new URL(redirectTo, request.url))

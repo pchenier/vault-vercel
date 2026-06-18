@@ -1,16 +1,20 @@
 import { NextResponse } from 'next/server'
-import { COOKIE_NAME } from '@/lib/auth-jwt'
+import { queryOne, run } from '@/lib/postgres'
+import { signToken, COOKIE_NAME } from '@/lib/auth-jwt'
+
+export async function GET() {
+  // Just redirect to logout page — this clears the cookie client-side
+  return NextResponse.json({ ok: true })
+}
 
 export async function POST() {
   const response = NextResponse.json({ ok: true })
-  response.cookies.set(COOKIE_NAME, '', { maxAge: 0, path: '/' })
-  return response
-}
-
-export async function GET() {
-  const response = NextResponse.redirect(
-    new URL('/', process.env.NEXT_PUBLIC_APP_URL || 'https://vault-vercel.vercel.app')
-  )
-  response.cookies.set(COOKIE_NAME, '', { maxAge: 0, path: '/' })
+  response.cookies.set(COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    maxAge: 0,
+    path: '/',
+  })
   return response
 }

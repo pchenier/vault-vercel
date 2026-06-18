@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne, run } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,14 +44,13 @@ export async function GET() {
   const payload = verifyToken(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Get user's crypto holdings from Supabase
-  const { data: holdings } = await supabaseAdmin
-    .from('vault_credentials')
-    .select('crypto_holdings')
-    .eq('user_id', payload.sub)
-    .single()
+  // Get user's crypto holdings from Postgres
+  const holdings = await queryOne<{ crypto_holdings: Record<string, number> | null }>(
+    'SELECT crypto_holdings FROM vault_credentials WHERE user_id = $1',
+    [Number(payload.sub)]
+  )
 
-  const userHoldings: Record<string, number> = holdings?.crypto_holdings || {}
+  const userHoldings: Record<string, number> = (holdings?.crypto_holdings as Record<string, number>) || {}
 
   // If no holdings, return top coins with live prices (discoverable)
   const allCoins = Object.keys(COINGECKO_IDS)
@@ -111,11 +110,10 @@ export async function POST(req: Request) {
   )
   const cleaned = Object.fromEntries(valid)
 
-  const { error } = await supabaseAdmin
-    .from('vault_credentials')
-    .update({ crypto_holdings: cleaned })
-    .eq('user_id', payload.sub)
+  await run(
+    'UPDATE vault_credentials SET crypto_holdings = $1 WHERE user_id = $2',
+    [JSON.stringify(cleaned), Number(payload.sub)]
+  )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true, holdings: cleaned })
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,11 +13,10 @@ export async function GET() {
   const payload = verifyToken(token)
   if (!payload) return NextResponse.json({ user: null })
 
-  const { data: user } = await supabaseAdmin
-    .from('vault_users')
-    .select('id, email, created_at')
-    .eq('id', payload.sub)
-    .single()
+  const user = await queryOne<{ id: number; email: string; created_at: Date }>(
+    'SELECT id, email, created_at FROM users WHERE id = $1',
+    [Number(payload.sub)]
+  )
 
   return NextResponse.json({ user })
 }

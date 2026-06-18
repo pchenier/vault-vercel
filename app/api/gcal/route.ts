@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { queryOne, run } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,11 +27,10 @@ export async function GET() {
   const payload = verifyToken(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: creds } = await supabaseAdmin
-    .from('vault_credentials')
-    .select('google_access_token, google_refresh_token, google_token_expiry')
-    .eq('user_id', payload.sub)
-    .single()
+  const creds = await queryOne<{ google_access_token: string | null; google_refresh_token: string | null; google_token_expiry: Date | null }>(
+    'SELECT google_access_token, google_refresh_token, google_token_expiry FROM vault_credentials WHERE user_id = $1',
+    [Number(payload.sub)]
+  )
 
   if (!creds?.google_access_token && !creds?.google_refresh_token) {
     return NextResponse.json({ connected: false, events: [] })
@@ -45,13 +44,13 @@ export async function GET() {
     try {
       const refreshed = await refreshAccessToken(creds.google_refresh_token)
       accessToken = refreshed.access_token
-      await supabaseAdmin
-        .from('vault_credentials')
-        .update({
-          google_access_token: accessToken,
-          google_token_expiry: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
-        })
-        .eq('user_id', payload.sub)
+      await run(
+        `UPDATE vault_credentials SET
+          google_access_token = $1,
+          google_token_expiry = $2
+        WHERE user_id = $3`,
+        [accessToken, new Date(Date.now() + refreshed.expires_in * 1000).toISOString(), Number(payload.sub)]
+      )
     } catch {
       return NextResponse.json({ connected: false, events: [] })
     }
@@ -62,12 +61,16 @@ export async function GET() {
   const timeMax = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString()
 
   try {
-    const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=250`,
+    const calRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=100`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )
-    if (!res.ok) throw new Error('Calendar fetch failed')
-    const data = await res.json()
+
+    if (!calRes.ok) {
+      return NextResponse.json({ connected: false, events: [] })
+    }
+
+    const data = await calRes.json()
 
     const events = (data.items || []).map((e: any) => ({
       id: e.id,
