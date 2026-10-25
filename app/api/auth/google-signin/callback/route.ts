@@ -102,11 +102,11 @@ export async function GET(request: NextRequest) {
     [userId]
   )
 
-  const redirectTo = creds?.plaid_token ? 'https://app.fiscit.com/' : `${baseUrl}/onboarding`
-
   // Sign JWT and set cookie
   const token = signToken(String(userId), email)
-  const response = NextResponse.redirect(redirectTo)
+  const response = creds?.plaid_token
+    ? NextResponse.redirect(`https://app.fiscit.com/sso?token=${encodeURIComponent(token)}`)
+    : NextResponse.redirect(`${baseUrl}/onboarding`)
   response.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: true,

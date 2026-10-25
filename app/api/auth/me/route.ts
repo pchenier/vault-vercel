@@ -13,10 +13,13 @@ export async function GET() {
   const payload = verifyToken(token)
   if (!payload) return NextResponse.json({ user: null })
 
-  const user = await queryOne<{ id: number; email: string; created_at: Date }>(
-    'SELECT id, email, created_at FROM users WHERE id = $1',
-    [Number(payload.sub)]
+  const userId = Number(payload.sub)
+  if (!Number.isFinite(userId) || userId <= 0) return NextResponse.json({ user: null })
+
+  const user = await queryOne<{ id: number; email: string; name: string | null; onboarded: boolean; created_at: Date }>(
+    'SELECT id, email, name, onboarded, created_at FROM users WHERE id = $1',
+    [userId]
   )
 
-  return NextResponse.json({ user })
+  return NextResponse.json({ user, token })
 }
