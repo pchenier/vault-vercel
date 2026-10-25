@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.fiscit.com'
+
 const COINS = [
   { sym: 'BTC', name: 'Bitcoin' },
   { sym: 'ETH', name: 'Ethereum' },
@@ -29,16 +31,29 @@ export default function OnboardingPage() {
   const [plaidLoading, setPlaidLoading] = useState(false)
 
   useEffect(() => {
-    // If user already completed onboarding, redirect to app
+    // If user already completed onboarding, go straight to the dashboard
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (data?.user?.name && data?.user?.onboarded) {
-          window.location.href = 'https://app.fiscit.com/login'
+          window.location.href = dashboardUrl(data?.token)
         }
       })
       .catch(() => {})
   }, [])
+
+  // The dashboard lives on app.fiscit.com (Flask), which only trusts a session
+  // created through /sso. Without a handoff token, send the user to our own
+  // /login, which re-establishes the session and then hands off.
+  function dashboardUrl(token?: string) {
+    return token ? `${DASHBOARD_URL}/sso?token=${encodeURIComponent(token)}` : '/login'
+  }
+
+  async function goToDashboard() {
+    const meData = await fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).catch(() => null)
+    if (!meData?.token) console.error('No session on fiscit.com — sending to /login')
+    window.location.href = dashboardUrl(meData?.token)
+  }
 
   async function saveName() {
     setLoading(true)
@@ -177,22 +192,17 @@ export default function OnboardingPage() {
         credentials: 'include'
       })
 
-      // Get SSO token and redirect to app
-      const meRes = await fetch('/api/auth/me', { credentials: 'include' })
-      const meData = await meRes.json()
-      if (meData?.token) {
-        window.location.href = `https://app.fiscit.com/sso?token=${encodeURIComponent(meData.token)}`
-      } else {
-        window.location.href = 'https://app.fiscit.com/login'
-      }
+      await goToDashboard()
     } catch {
       setError('Something went wrong. Please try again.')
       setLoading(false)
     }
   }
 
-  function skipAll() {
-    window.location.href = 'https://app.fiscit.com/login'
+  async function skipAll() {
+    setLoading(true)
+    await fetch('/api/auth/onboard', { method: 'POST', credentials: 'include' }).catch(() => {})
+    await goToDashboard()
   }
 
   const steps: { key: Step; label: string; num: number }[] = [
