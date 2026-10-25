@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Landmark } from 'lucide-react'
+import { AuthShell, AuthTitle } from '@/components/auth-shell'
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.fiscit.com'
 
@@ -214,156 +216,109 @@ export default function OnboardingPage() {
   const currentIdx = steps.findIndex(s => s.key === step)
 
   return (
-    <html lang="en">
-      <head>
-        <meta charSet="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Fiscit — Setup</title>
-        <style>{`
-          *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-          body { font-family: 'Inter', -apple-system, sans-serif; background: #080808; color: #f4f4f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-          .card { width: 100%; max-width: 440px; padding: 2.5rem; background: #111; border: 1px solid #222; border-radius: 16px; margin: 1rem; }
-          .logo { font-size: 1.5rem; font-weight: 700; color: #4ade80; margin-bottom: 1.5rem; letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.4rem; }
-          .progress { display: flex; gap: 8px; margin-bottom: 2rem; }
-          .dot { flex: 1; height: 4px; border-radius: 2px; background: #2a2a2a; transition: background 0.3s; }
-          .dot.active { background: #4ade80; }
-          .dot.done { background: #4ade80; }
-          h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
-          .sub { color: #71717a; font-size: 0.875rem; margin-bottom: 1.5rem; }
-          input[type="text"], input[type="number"] {
-            width: 100%; padding: 0.75rem 1rem; background: #1a1a1a; border: 1px solid #2a2a2a;
-            border-radius: 8px; color: #f4f4f5; font-size: 1rem; outline: none; transition: border-color 0.15s;
-          }
-          input:focus { border-color: #4ade80; }
-          .btn { width: 100%; padding: 0.875rem; background: #4ade80; color: #080808; font-weight: 700; font-size: 1rem; border: none; border-radius: 8px; cursor: pointer; transition: opacity 0.15s; margin-top: 1rem; }
-          .btn:hover { opacity: 0.9; }
-          .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-          .btn-outline { background: transparent; border: 1px solid #2a2a2a; color: #a1a1aa; }
-          .btn-outline:hover { border-color: #4ade80; color: #4ade80; }
-          .btn-white { background: #fff; color: #3c4043; }
-          .btn-white:hover { background: #f5f5f5; }
-          .error { margin-top: 0.75rem; padding: 0.75rem 1rem; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; color: #f87171; font-size: 0.875rem; }
-          .skip { display: block; text-align: center; color: #52525b; font-size: 0.8rem; margin-top: 1rem; cursor: pointer; background: none; border: none; width: 100%; }
-          .skip:hover { color: #a1a1aa; }
-          .coin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 320px; overflow-y: auto; margin-bottom: 1rem; }
-          .coin-row { display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: border-color 0.15s; }
-          .coin-row:hover { border-color: #4ade80; }
-          .coin-row.selected { border-color: #4ade80; background: #1a2a1a; }
-          .coin-row input { width: 80px; padding: 4px 8px; font-size: 0.85rem; text-align: right; background: #111; border: 1px solid #2a2a2a; border-radius: 4px; color: #f4f4f5; }
-          .coin-row input:focus { border-color: #4ade80; outline: none; }
-          .coin-symbol { font-weight: 600; font-size: 0.875rem; }
-          .coin-name { color: #71717a; font-size: 0.75rem; }
-          .label { display: block; font-size: 0.8rem; font-weight: 500; color: #a1a1aa; margin-bottom: 0.4rem; margin-top: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
-        `}</style>
-      </head>
-      <body>
-        <div className="card">
-          <div className="logo">
-            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
-              <rect width="32" height="32" rx="8" fill="#0A0F1A"/>
-              <rect x="7" y="6" width="5" height="20" rx="2" fill="#F0F4F8"/>
-              <rect x="7" y="6" width="16" height="5" rx="2" fill="#F0F4F8"/>
-              <rect x="7" y="14" width="12" height="4" rx="2" fill="#F0F4F8"/>
-              <circle cx="26" cy="8.5" r="3.5" fill="#b8f566"/>
-            </svg>
-            Fiscit
+    <AuthShell stepKey={step}>
+      <title>Fiscit — Setup</title>
+      <div className="auth-progress" aria-label={`Step ${currentIdx + 1} of ${steps.length}`}>
+        {steps.map((s, i) => (
+          <span key={s.key}><i style={{ transform: `scaleX(${i <= currentIdx ? 1 : 0})` }} /></span>
+        ))}
+      </div>
+      <div className="auth-steplabel">Step {currentIdx + 1} of {steps.length} · {steps[currentIdx]?.label}</div>
+
+      {step === 'name' && (
+        <>
+          <AuthTitle sub="Pick a name for your account.">What should we <em>call you?</em></AuthTitle>
+          <form onSubmit={e => { e.preventDefault(); saveName() }}>
+            <input type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} autoFocus />
+            <button type="submit" className="auth-btn" disabled={loading}>
+              {loading ? 'Saving…' : 'Continue'}
+            </button>
+          </form>
+          <button className="auth-skip" onClick={() => { setStep('bank') }}>Skip for now</button>
+        </>
+      )}
+
+      {step === 'bank' && (
+        <>
+          <AuthTitle sub="Link your accounts to see balances and transactions in one place. Read-only — Fiscit can never move money.">
+            Connect your <em>bank.</em>
+          </AuthTitle>
+          <button className="auth-btn white" onClick={openPlaid} disabled={plaidLoading}>
+            <Landmark size={17} />
+            {plaidLoading ? 'Connecting…' : 'Connect with Plaid'}
+          </button>
+          {error && <div className="auth-error" role="alert">{error}</div>}
+          <button className="auth-btn ghost" onClick={skipBank} style={{ marginTop: 10 }}>
+            Skip, add later
+          </button>
+        </>
+      )}
+
+      {step === 'crypto' && (
+        <>
+          <AuthTitle sub="Select the coins you hold and enter amounts. You can always add more later.">
+            Track your <em>crypto.</em>
+          </AuthTitle>
+          <div className="auth-coins">
+            {COINS.map(coin => {
+              const selected = coin.sym in cryptoHoldings
+              return (
+                <div key={coin.sym} className={`auth-coin ${selected ? 'selected' : ''}`}
+                  role="button" tabIndex={0} aria-pressed={selected}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); (e.currentTarget as HTMLElement).click() } }}
+                  onClick={() => {
+                    if (!selected) {
+                      setCryptoHoldings(prev => ({ ...prev, [coin.sym]: '' }))
+                    } else {
+                      setCryptoHoldings(prev => {
+                        const next = { ...prev }
+                        delete next[coin.sym]
+                        return next
+                      })
+                    }
+                  }}>
+                  <div>
+                    <b>{coin.sym}</b>
+                    <small>{coin.name}</small>
+                  </div>
+                  {selected && (
+                    <input type="number" step="any" min="0" placeholder="0.00"
+                      value={cryptoHoldings[coin.sym]}
+                      onClick={e => e.stopPropagation()}
+                      onKeyDown={e => e.stopPropagation()}
+                      onChange={e => setCryptoHoldings(prev => ({ ...prev, [coin.sym]: e.target.value }))} />
+                  )}
+                </div>
+              )
+            })}
           </div>
+          <button className="auth-btn" onClick={saveCryptoAndContinue} disabled={loading}>
+            {loading ? 'Saving…' : 'Continue'}
+          </button>
+          <button className="auth-skip" onClick={() => { setStep('wise') }}>Skip crypto</button>
+        </>
+      )}
 
-          <div className="progress">
-            {steps.map((s, i) => (
-              <div key={s.key} className={`dot ${i < currentIdx ? 'done' : i === currentIdx ? 'active' : ''}`} />
-            ))}
-          </div>
-
-          {step === 'name' && (
-            <>
-              <h1>What should we call you?</h1>
-              <p className="sub">Pick a name for your account</p>
-              <form onSubmit={e => { e.preventDefault(); saveName() }}>
-                <input type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} autoFocus />
-                <button type="submit" className="btn" disabled={loading}>
-                  {loading ? 'Saving...' : 'Continue'}
-                </button>
-              </form>
-              <button className="skip" onClick={() => { setStep('bank') }}>Skip for now</button>
-            </>
-          )}
-
-          {step === 'bank' && (
-            <>
-              <h1>Connect your bank</h1>
-              <p className="sub">Link your accounts to see balances and transactions in one place.</p>
-              <button className="btn btn-white" onClick={openPlaid} disabled={plaidLoading}>
-                <svg width="18" height="18" viewBox="0 0 18 18" style={{display:'inline-block',verticalAlign:'middle',marginRight:'8px'}}>
-                  <path d="M2 4h14v2H2zm0 4h14v2H2zm0 4h10v2H2z" fill="#666"/>
-                </svg>
-                {plaidLoading ? 'Connecting...' : 'Connect with Plaid'}
-              </button>
-              {error && <div className="error">{error}</div>}
-              <button className="btn btn-outline" onClick={skipBank} style={{marginTop: '0.75rem'}}>
-                Skip, add later
-              </button>
-            </>
-          )}
-
-          {step === 'crypto' && (
-            <>
-              <h1>Track your crypto</h1>
-              <p className="sub">Select coins you hold and enter amounts. You can always add more later.</p>
-              <div className="coin-grid">
-                {COINS.map(coin => {
-                  const selected = coin.sym in cryptoHoldings
-                  return (
-                    <div key={coin.sym} className={`coin-row ${selected ? 'selected' : ''}`}
-                      onClick={() => {
-                        if (!selected) {
-                          setCryptoHoldings(prev => ({ ...prev, [coin.sym]: '' }))
-                        } else {
-                          setCryptoHoldings(prev => {
-                            const next = { ...prev }
-                            delete next[coin.sym]
-                            return next
-                          })
-                        }
-                      }}>
-                      <div>
-                        <div className="coin-symbol">{coin.sym}</div>
-                        <div className="coin-name">{coin.name}</div>
-                      </div>
-                      {selected && (
-                        <input type="number" step="any" min="0" placeholder="0.00"
-                          value={cryptoHoldings[coin.sym]}
-                          onClick={e => e.stopPropagation()}
-                          onChange={e => setCryptoHoldings(prev => ({ ...prev, [coin.sym]: e.target.value }))} />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-              <button className="btn" onClick={saveCryptoAndContinue} disabled={loading}>
-                {loading ? 'Saving...' : 'Continue'}
-              </button>
-              <button className="skip" onClick={() => { setStep('wise') }}>Skip crypto</button>
-            </>
-          )}
-
-          {step === 'wise' && (
-            <>
-              <h1>Wise account</h1>
-              <p className="sub">Connect your Wise (TransferWise) account to see multi-currency balances. Optional.</p>
-              <label className="label">Wise API Token</label>
-              <input type="text" placeholder="Your Wise API token" value={wiseToken} onChange={e => setWiseToken(e.target.value)} />
-              <label className="label">Wise Profile ID</label>
-              <input type="text" placeholder="Your Wise profile ID" value={wiseProfile} onChange={e => setWiseProfile(e.target.value)} />
-              {error && <div className="error">{error}</div>}
-              <button className="btn" onClick={finish} disabled={loading}>
-                {loading ? 'Setting up...' : 'Go to Dashboard'}
-              </button>
-              <button className="skip" onClick={skipAll}>Skip, set up later</button>
-            </>
-          )}
-        </div>
-      </body>
-    </html>
+      {step === 'wise' && (
+        <>
+          <AuthTitle sub="Connect your Wise account to see multi-currency balances. Optional.">
+            Add <em>Wise.</em>
+          </AuthTitle>
+          <label className="auth-field">
+            <span>Wise API token</span>
+            <input type="text" placeholder="Your Wise API token" value={wiseToken} onChange={e => setWiseToken(e.target.value)} />
+          </label>
+          <label className="auth-field">
+            <span>Wise profile ID</span>
+            <input type="text" placeholder="Your Wise profile ID" value={wiseProfile} onChange={e => setWiseProfile(e.target.value)} />
+          </label>
+          {error && <div className="auth-error" role="alert">{error}</div>}
+          <button className="auth-btn" onClick={finish} disabled={loading}>
+            {loading ? 'Setting up…' : 'Go to my dashboard'}
+          </button>
+          <button className="auth-skip" onClick={skipAll}>Skip, set up later</button>
+        </>
+      )}
+    </AuthShell>
   )
 }
