@@ -11,10 +11,12 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
-    "next": "16.3.0-canary.45",
+    "lucide-react": "^1.61.0",
+    "motion": "14.6.0",
+    "next": "16.4.3",
     "pg": "^8.21.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "resend": "^6.12.4"
   },
   "devDependencies": {
@@ -26,7 +28,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.0-canary.45",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

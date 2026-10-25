@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { queryOne } from '@/lib/postgres'
-import { signToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { signToken, appSsoUrl, COOKIE_NAME } from '@/lib/auth-jwt'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       [user.id]
     )
 
-    const redirectTo = creds?.plaid_token ? 'https://app.fiscit.com/' : '/onboarding'
+    const redirectTo = creds?.plaid_token ? appSsoUrl(String(user.id), user.email) : '/onboarding'
 
     const token = signToken(String(user.id), user.email)
     const response = NextResponse.json({ ok: true, redirectTo })

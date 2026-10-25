@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { queryOne, run } from '@/lib/postgres'
-import { signToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { signToken, appSsoUrl, COOKIE_NAME } from '@/lib/auth-jwt'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 
     // Sign in the user automatically
     const jwt = signToken(String(user.id), user.email)
-    const redirectTo = creds?.plaid_token ? 'https://app.fiscit.com/' : '/onboarding'
+    const redirectTo = creds?.plaid_token ? appSsoUrl(String(user.id), user.email) : '/onboarding'
 
     const response = NextResponse.redirect(new URL(redirectTo, request.url))
     response.cookies.set(COOKIE_NAME, jwt, {

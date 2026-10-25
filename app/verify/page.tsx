@@ -26,7 +26,8 @@ export default function VerifyPage() {
         if (res.ok) {
           setStatus('success')
           setMessage('Email verified! Redirecting...')
-          setTimeout(() => { window.location.href = 'https://app.fiscit.com/' }, 2000)
+          // /login forwards a signed-in user on to the dashboard via /sso
+          setTimeout(() => { window.location.href = '/login' }, 2000)
         } else {
           setStatus('error')
           setMessage('Verification failed. The link may have expired.')

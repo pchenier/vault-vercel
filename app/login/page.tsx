@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.fiscit.com'
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -32,8 +34,11 @@ export default function LoginPage() {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
-        if (data.user) window.location.href = 'https://app.fiscit.com/'
-        else setChecking(false)
+        if (data.user && data.token) {
+          window.location.href = data.user.onboarded
+            ? `${DASHBOARD_URL}/sso?token=${encodeURIComponent(data.token)}`
+            : '/onboarding'
+        } else setChecking(false)
       })
       .catch(() => setChecking(false))
   }, [])
@@ -50,9 +55,8 @@ export default function LoginPage() {
       })
       const data = await res.json()
       if (data.ok) {
-        window.location.href = data.redirectTo === '/onboarding' 
-          ? '/onboarding' 
-          : 'https://app.fiscit.com/'
+        // redirectTo is either /onboarding or the app's /sso URL with a handoff token
+        window.location.href = data.redirectTo || '/onboarding'
       } else {
         setError(data.error || 'Login failed')
         if (data.needsVerification) setNeedsVerification(true)

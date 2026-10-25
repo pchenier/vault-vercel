@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { queryOne, run } from '@/lib/postgres'
-import { signToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { signToken, appSsoUrl, COOKIE_NAME } from '@/lib/auth-jwt'
 
 export async function GET(request: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://fiscit.com'
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
   // Sign JWT and set cookie
   const token = signToken(String(userId), email)
   const response = creds?.plaid_token
-    ? NextResponse.redirect(`https://app.fiscit.com/sso?token=${encodeURIComponent(token)}`)
+    ? NextResponse.redirect(appSsoUrl(String(userId), email))
     : NextResponse.redirect(`${baseUrl}/onboarding`)
   response.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,

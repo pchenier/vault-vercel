@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { verifyToken, signHandoffToken, COOKIE_NAME } from '@/lib/auth-jwt'
 import { queryOne } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
@@ -21,5 +21,8 @@ export async function GET() {
     [userId]
   )
 
-  return NextResponse.json({ user, token })
+  if (!user) return NextResponse.json({ user: null })
+
+  // Hand out a short-lived token for the /sso hop, never the httpOnly session cookie itself.
+  return NextResponse.json({ user, token: signHandoffToken(String(user.id), user.email) })
 }
