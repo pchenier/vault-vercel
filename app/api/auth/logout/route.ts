@@ -1,14 +1,7 @@
 import { NextResponse } from 'next/server'
-import { queryOne, run } from '@/lib/postgres'
-import { signToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { COOKIE_NAME } from '@/lib/auth-jwt'
 
-export async function GET() {
-  // Just redirect to logout page — this clears the cookie client-side
-  return NextResponse.json({ ok: true })
-}
-
-export async function POST() {
-  const response = NextResponse.json({ ok: true })
+function clearSession(response: NextResponse) {
   response.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,
     secure: true,
@@ -17,4 +10,14 @@ export async function POST() {
     path: '/',
   })
   return response
+}
+
+// Browser navigation (e.g. from app.fiscit.com after deleting an account):
+// clear the fiscit.com session and land on the home page.
+export async function GET(request: Request) {
+  return clearSession(NextResponse.redirect(new URL('/', request.url)))
+}
+
+export async function POST() {
+  return clearSession(NextResponse.json({ ok: true }))
 }
