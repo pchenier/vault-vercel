@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Landmark } from 'lucide-react'
+import { Landmark, Plus, X } from 'lucide-react'
 import { AuthShell, AuthTitle } from '@/components/auth-shell'
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.fiscit.com'
@@ -20,13 +20,26 @@ const COINS = [
   { sym: 'SHIB', name: 'Shiba Inu' },
 ] as const
 
-type Step = 'name' | 'bank' | 'crypto' | 'wise'
+type Step = 'name' | 'bank' | 'crypto' | 'invest'
+
+const PLATFORMS = ['Questrade', 'Wealthsimple', 'Interactive Brokers', 'Disnat', 'National Bank Direct Brokerage', 'TD Direct Investing', 'RBC Direct Investing', 'BMO InvestorLine', 'Other']
+const ACCOUNT_TYPES = ['TFSA', 'RRSP', 'FHSA', 'RESP', 'Non-registered']
+type InvestRow = { platform: string; type: string; balance: string }
+const emptyRow = (): InvestRow => ({ platform: '', type: 'TFSA', balance: '' })
+
+// Accepts "12,345.67", "12 345,67" (French) or "$12345" → 12345.67 / 12345
+function parseMoney(input: string): number {
+  let s = input.replace(/[\s$ ]/g, '')
+  if (/,\d{1,2}$/.test(s) && !s.includes('.')) s = s.replace(/\./g, '').replace(',', '.')
+  else s = s.replace(/,/g, '')
+  const n = parseFloat(s)
+  return Number.isFinite(n) && n >= 0 ? n : 0
+}
 
 export default function OnboardingPage() {
   const [step, setStep] = useState<Step>('name')
   const [name, setName] = useState('')
-  const [wiseToken, setWiseToken] = useState('')
-  const [wiseProfile, setWiseProfile] = useState('')
+  const [invRows, setInvRows] = useState<InvestRow[]>([emptyRow()])
   const [cryptoHoldings, setCryptoHoldings] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -165,10 +178,10 @@ export default function OnboardingPage() {
           credentials: 'include'
         })
       }
-      setStep('wise')
+      setStep('invest')
     } catch {
       setError('Could not save crypto. Skip and add later.')
-      setStep('wise')
+      setStep('invest')
     } finally {
       setLoading(false)
     }
@@ -178,14 +191,22 @@ export default function OnboardingPage() {
     setLoading(true)
     setError('')
     try {
-      // Save Wise credentials if provided
-      if (wiseToken.trim() && wiseProfile.trim()) {
-        await fetch('/api/settings/update', {
+      // Save the investment accounts that have a platform picked
+      const accounts = invRows
+        .filter(r => r.platform)
+        .map(r => ({ platform: r.platform, label: r.type, balance: parseMoney(r.balance) }))
+      if (accounts.length) {
+        const res = await fetch('/api/investments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ wiseToken: wiseToken.trim(), wiseProfile: wiseProfile.trim() }),
+          body: JSON.stringify({ accounts }),
           credentials: 'include'
         })
+        if (!res.ok) {
+          setError('Could not save your investment accounts. Try again, or skip and add them later.')
+          setLoading(false)
+          return
+        }
       }
 
       // Mark onboarding complete
@@ -211,7 +232,7 @@ export default function OnboardingPage() {
     { key: 'name', label: 'Name', num: 1 },
     { key: 'bank', label: 'Bank', num: 2 },
     { key: 'crypto', label: 'Crypto', num: 3 },
-    { key: 'wise', label: 'Wise', num: 4 },
+    { key: 'invest', label: 'Investments', num: 4 },
   ]
   const currentIdx = steps.findIndex(s => s.key === step)
 
@@ -295,28 +316,62 @@ export default function OnboardingPage() {
           <button className="auth-btn" onClick={saveCryptoAndContinue} disabled={loading}>
             {loading ? 'Saving…' : 'Continue'}
           </button>
-          <button className="auth-skip" onClick={() => { setStep('wise') }}>Skip crypto</button>
+          <button className="auth-skip" onClick={() => { setStep('invest') }}>Skip crypto</button>
         </>
       )}
 
-      {step === 'wise' && (
+      {step === 'invest' && (
         <>
-          <AuthTitle sub="Connect your Wise account to see multi-currency balances. Optional.">
-            Add <em>Wise.</em>
+          <AuthTitle sub="TFSA, RRSP, brokerage… Pick the platform and enter today's balance — you can update it anytime from your dashboard.">
+            Add investment <em>accounts.</em>
           </AuthTitle>
-          <label className="auth-field">
-            <span>Wise API token</span>
-            <input type="text" placeholder="Your Wise API token" value={wiseToken} onChange={e => setWiseToken(e.target.value)} />
-          </label>
-          <label className="auth-field">
-            <span>Wise profile ID</span>
-            <input type="text" placeholder="Your Wise profile ID" value={wiseProfile} onChange={e => setWiseProfile(e.target.value)} />
-          </label>
+          <div className="auth-invlist">
+            {invRows.map((row, i) => (
+              <div key={i} className="auth-invrow">
+                <div className="auth-invrow-top">
+                  <select
+                    aria-label="Platform"
+                    value={row.platform}
+                    onChange={e => setInvRows(rows => rows.map((r, j) => j === i ? { ...r, platform: e.target.value } : r))}
+                  >
+                    <option value="">Choose a platform…</option>
+                    {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  {invRows.length > 1 && (
+                    <button type="button" className="auth-invrm" aria-label="Remove account"
+                      onClick={() => setInvRows(rows => rows.filter((_, j) => j !== i))}>
+                      <X size={15} />
+                    </button>
+                  )}
+                </div>
+                <div className="auth-chips" role="radiogroup" aria-label="Account type">
+                  {ACCOUNT_TYPES.map(t => (
+                    <button type="button" key={t} role="radio" aria-checked={row.type === t}
+                      className={row.type === t ? 'on' : ''}
+                      onClick={() => setInvRows(rows => rows.map((r, j) => j === i ? { ...r, type: t } : r))}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <div className="auth-money">
+                  <span>$</span>
+                  <input type="text" inputMode="decimal" placeholder="Current balance" aria-label="Current balance"
+                    value={row.balance}
+                    onChange={e => setInvRows(rows => rows.map((r, j) => j === i ? { ...r, balance: e.target.value } : r))} />
+                </div>
+              </div>
+            ))}
+          </div>
+          {invRows.length < 10 && (
+            <button type="button" className="auth-add" onClick={() => setInvRows(rows => [...rows, emptyRow()])}>
+              <Plus size={15} /> Add another account
+            </button>
+          )}
           {error && <div className="auth-error" role="alert">{error}</div>}
           <button className="auth-btn" onClick={finish} disabled={loading}>
             {loading ? 'Setting up…' : 'Go to my dashboard'}
           </button>
-          <button className="auth-skip" onClick={skipAll}>Skip, set up later</button>
+          <button className="auth-skip" onClick={skipAll}>Skip, add later</button>
         </>
       )}
     </AuthShell>

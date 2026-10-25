@@ -164,3 +164,26 @@ body {
 .auth-spinner{display:block;width:28px;height:28px;margin:0 auto;border-radius:50%;border:2px solid rgba(255,255,255,.1);border-top-color:var(--lime);animation:authSpin .8s linear infinite}
 @keyframes authSpin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion: reduce){.auth-btn::after{display:none}.auth-spinner{animation-duration:2s}}
+
+/* Onboarding — investment accounts step */
+.auth-invlist{display:grid;gap:10px}
+.auth-invrow{padding:12px;border-radius:14px;border:1px solid var(--line-strong);background:rgba(255,255,255,.015);display:grid;gap:10px}
+.auth-invrow-top{display:flex;gap:8px;align-items:center}
+.auth select{flex:1;width:100%;padding:11px 36px 11px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line-strong);color:var(--text);
+  font:inherit;font-size:.92rem;outline:none;appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a93' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center}
+.auth select:focus{border-color:rgba(184,245,102,.5);box-shadow:0 0 0 4px rgba(184,245,102,.08)}
+.auth select option{background:#151515}
+.auth-invrm{display:grid;place-items:center;width:40px;height:40px;flex-shrink:0;border-radius:10px;border:1px solid var(--line-strong);background:none;color:var(--muted);cursor:pointer}
+.auth-invrm:hover{color:var(--red);border-color:rgba(248,113,113,.35)}
+.auth-chips{display:flex;flex-wrap:wrap;gap:6px}
+.auth-chips button{padding:6px 11px;border-radius:999px;border:1px solid var(--line-strong);background:none;color:var(--muted);font:inherit;font-size:.78rem;font-weight:500;cursor:pointer;transition:all .15s}
+.auth-chips button:hover{color:var(--text);border-color:#3a3a3a}
+.auth-chips button.on{background:var(--lime-dim);border-color:rgba(184,245,102,.45);color:var(--lime)}
+.auth-money{position:relative}
+.auth-money span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.95rem;pointer-events:none}
+.auth-money input[type=text]{padding-left:28px;font-variant-numeric:tabular-nums}
+.auth-add{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px;padding:10px;border-radius:12px;border:1px dashed var(--line-strong);
+  background:none;color:var(--muted);font:inherit;font-size:.86rem;cursor:pointer;transition:all .15s}
+.auth-add:hover{color:var(--lime);border-color:rgba(184,245,102,.4);background:rgba(184,245,102,.03)}
