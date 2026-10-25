@@ -63,13 +63,35 @@ export default function OnboardingPage() {
     setStep('crypto')
   }
 
+  // Load Plaid Link on demand and wait for window.Plaid (a <script> in this
+  // page's own <head> isn't reliably executed by React).
+  function loadPlaidScript(): Promise<void> {
+    if ((window as any).Plaid) return Promise.resolve()
+    return new Promise((resolve, reject) => {
+      const existing = document.getElementById('plaid-link-script') as HTMLScriptElement | null
+      const s = existing ?? document.createElement('script')
+      s.addEventListener('load', () => resolve())
+      s.addEventListener('error', () => reject(new Error('Plaid script failed to load')))
+      if (!existing) {
+        s.id = 'plaid-link-script'
+        s.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js'
+        s.async = true
+        document.body.appendChild(s)
+      }
+    })
+  }
+
   async function openPlaid() {
     setPlaidLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/plaid/link_token', { method: 'POST', credentials: 'include' })
+      const [res] = await Promise.all([
+        fetch('/api/plaid/link_token', { method: 'POST', credentials: 'include' }),
+        loadPlaidScript(),
+      ])
       const data = await res.json()
       if (!data.link_token) {
+        console.error('Plaid link_token error:', data)
         setError('Could not connect to bank. You can skip and add later.')
         setPlaidLoading(false)
         return
@@ -102,7 +124,8 @@ export default function OnboardingPage() {
         },
       })
       handler.open()
-    } catch {
+    } catch (e) {
+      console.error('Plaid Link failed:', e)
       setError('Could not load bank connection. Skip and add later.')
       setPlaidLoading(false)
     }
@@ -186,7 +209,6 @@ export default function OnboardingPage() {
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Fiscit — Setup</title>
-        <script src="https://cdn.plaid.com/link/v2/stable/plaid-link-initialize.js" async></script>
         <style>{`
           *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
           body { font-family: 'Inter', -apple-system, sans-serif; background: #080808; color: #f4f4f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
