@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
 import { queryOne } from '@/lib/postgres'
+import { decryptToken } from '@/lib/token-crypto'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -166,6 +167,7 @@ export async function GET() {
     'SELECT plaid_token, wise_token, wise_profile, usd_to_cad, start_date FROM vault_credentials WHERE user_id = $1',
     [Number(payload.sub)]
   )
+  if (creds) { creds.plaid_token = decryptToken(creds.plaid_token); creds.wise_token = decryptToken(creds.wise_token) }
 
   if (!creds?.plaid_token) {
     return NextResponse.json({ error: 'No Plaid token. Complete onboarding first.' }, { status: 400 })

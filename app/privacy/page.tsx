@@ -36,7 +36,8 @@ const sections: LegalSection[] = [
         <ul>
           <li><strong>Account:</strong> email address, display name, password (stored only as a bcrypt hash — we never see it), and your Google account ID if you sign in with Google.</li>
           <li><strong>Bank data, through Plaid:</strong> account names and types, balances, and transactions (date, amount, merchant/description, category). We receive an access token from Plaid; <strong>we never receive or store your bank username or password.</strong></li>
-          <li><strong>Other connections you choose to add:</strong> your Wise API token and profile ID; Questrade authorization tokens; public crypto wallet addresses and the coin amounts you enter; investment account platform, type and balance you enter.</li>
+          <li><strong>Other connections you choose to add:</strong> your Wise API token and profile ID; public crypto wallet addresses and the coin amounts you enter; investment account platform, type and balance you enter.</li>
+          <li><strong>Brokerage connections (optional, read-only):</strong> if you connect a broker, we receive your investment accounts, balances and holdings (symbols, quantities, prices). Depending on the method, we store a read-only token or key you generate (Questrade, Interactive Brokers Flex, Kraken &ldquo;Query Funds&rdquo;) or a per-user secret from SnapTrade. <strong>We never receive your brokerage password</strong> and these connections cannot place trades or move money.</li>
           <li><strong>Google Calendar (optional):</strong> if you connect it, read-only access to your calendar events so they can appear in Fiscit&rsquo;s calendar.</li>
           <li><strong>Information you create in the app:</strong> categories, rules, budgets, and optional trackers (gym, meals, habits, calendar events). Most of these are stored only in your browser.</li>
           <li><strong>Technical data:</strong> session cookies, and standard server logs kept by our hosting providers (IP address, browser type, request time) for security and debugging.</li>
@@ -77,7 +78,9 @@ const sections: LegalSection[] = [
           <li><strong>Vercel</strong> (fiscit.com) and <strong>Railway</strong> (app.fiscit.com and our database) — hosting and storage.</li>
           <li><strong>Google</strong> — sign-in and, if you connect it, Google Calendar.</li>
           <li><strong>Resend</strong> — sends our emails (receives your email address).</li>
-          <li><strong>Wise</strong> and <strong>Questrade</strong> — only if you connect them, to read your balances.</li>
+          <li><strong>Wise</strong> — only if you connect it, to read your balances.</li>
+          <li><strong>SnapTrade</strong> — only if you connect a brokerage through it (e.g. Wealthsimple); you sign in to your broker on SnapTrade&rsquo;s page and it shares read-only account data with us.</li>
+          <li><strong>Questrade</strong>, <strong>Interactive Brokers</strong> and <strong>Kraken</strong> — only if you connect them directly, to read balances and holdings.</li>
           <li><strong>Public blockchain services</strong> (Solana RPC, blockchain.info, Etherscan) — receive the public wallet addresses you add, to read balances. <strong>CoinGecko</strong> provides coin prices and receives no personal information.</li>
         </ul>
         <p>We may also disclose information if required by law, or to protect the rights and safety of our users, as permitted by law.</p>
@@ -104,6 +107,7 @@ const sections: LegalSection[] = [
         <ul>
           <li>All traffic is encrypted with HTTPS/TLS.</li>
           <li>Passwords are hashed with bcrypt; sessions use signed, HTTP-only cookies.</li>
+          <li>Access tokens and API keys for your banks and brokers are encrypted in our database.</li>
           <li>Bank connections are <strong>read-only</strong>: Fiscit cannot move money, make payments or change anything at your bank.</li>
           <li>Access to production systems is restricted to the people who operate Fiscit.</li>
         </ul>
@@ -121,8 +125,9 @@ const sections: LegalSection[] = [
       <>
         <p>
           We keep your information while your account is open. When you delete your account (Settings → Delete account), we
-          immediately revoke Fiscit&rsquo;s access at Plaid and permanently delete your account, connections, tokens, balances and
-          investment entries from our database. Information stored only in your browser is cleared from that browser at the same time.
+          immediately revoke Fiscit&rsquo;s access at Plaid and SnapTrade and permanently delete your account, connections, tokens,
+          balances and investment entries from our database. You can also disconnect a single brokerage at any time from the
+          Investments page. Information stored only in your browser is cleared from that browser at the same time.
         </p>
         <p>Server logs kept by our hosting providers are deleted on their own schedules, typically within 30 days.</p>
       </>

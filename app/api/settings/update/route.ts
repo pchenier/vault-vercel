@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { encryptToken } from '@/lib/token-crypto'
 import { queryOne, run } from '@/lib/postgres'
 import bcrypt from 'bcryptjs'
 
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     const credUpdates: Record<string, unknown> = {}
-    if (wiseToken !== undefined) { credUpdates.wise_token = wiseToken; updates.push('wiseToken') }
+    if (wiseToken !== undefined) { credUpdates.wise_token = encryptToken(wiseToken); updates.push('wiseToken') }
     if (wiseProfile !== undefined) { credUpdates.wise_profile = wiseProfile; updates.push('wiseProfile') }
     if (usdToCad !== undefined) { credUpdates.usd_to_cad = String(usdToCad); updates.push('usdToCad') }
     if (startDate !== undefined) { credUpdates.start_date = String(startDate); updates.push('startDate') }

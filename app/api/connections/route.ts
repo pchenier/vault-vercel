@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
 import { queryOne } from '@/lib/postgres'
+import { decryptToken } from '@/lib/token-crypto'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,7 @@ export async function GET() {
     'SELECT plaid_token, wise_token, wise_profile FROM vault_credentials WHERE user_id = $1',
     [Number(payload.sub)]
   )
+  if (creds) creds.wise_token = decryptToken(creds.wise_token)
 
   const plaidConfigured = !!(process.env.PLAID_CLIENT_ID && process.env.PLAID_SECRET && creds?.plaid_token)
   const wiseConfigured = !!(creds?.wise_token && creds?.wise_profile)
