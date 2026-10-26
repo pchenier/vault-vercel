@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { rateLimited, clientIp } from '@/lib/rate-limit'
 import crypto from 'crypto'
 import { queryOne, run } from '@/lib/postgres'
 import { Resend } from 'resend'
@@ -13,6 +14,9 @@ export async function POST(request: Request) {
     const email = rawEmail?.toLowerCase().trim()
     if (!email) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    }
+    if (await rateLimited(`resend:${email}`, 3, 3600) || await rateLimited(`resend-ip:${clientIp(request)}`, 10, 3600)) {
+      return NextResponse.json({ error: 'Too many emails requested. Please try again in an hour.' }, { status: 429 })
     }
 
     const user = await queryOne<{ id: number; email: string; email_confirmed: boolean }>(
@@ -60,7 +64,7 @@ export async function POST(request: Request) {
         console.error('Failed to send verification email:', e)
       }
     } else {
-      console.log('RESEND: Verification URL for', email, ':', verifyUrl)
+      console.warn('RESEND_API_KEY missing: verification email not sent')
     }
 
     return NextResponse.json({ ok: true })

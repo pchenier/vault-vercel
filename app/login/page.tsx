@@ -132,6 +132,7 @@ export default function LoginPage() {
       <div className="auth-foot">
         No account? <Link href="/register">Create one</Link>
       </div>
+      <p className="auth-legal"><Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link></p>
     </AuthShell>
   )
 }

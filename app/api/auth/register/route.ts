@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { queryOne, run } from '@/lib/postgres'
 import { Resend } from 'resend'
+import { rateLimited, clientIp } from '@/lib/rate-limit'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -12,8 +13,15 @@ export async function POST(request: Request) {
   try {
     const { email: rawEmail, password, name, newsletter } = await request.json()
     const email = rawEmail?.toLowerCase().trim()
-    if (!email || !password) {
+    if (!email || !password || typeof password !== 'string') {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
+    }
+    if (Buffer.byteLength(password) > 72) {
+      return NextResponse.json({ error: 'Password must be 72 characters or fewer' }, { status: 400 })
+    }
+    const ip = clientIp(request)
+    if (await rateLimited(`register-ip:${ip}`, 5, 3600) || await rateLimited(`register-email:${email}`, 3, 3600)) {
+      return NextResponse.json({ error: 'Too many attempts. Please try again in an hour.' }, { status: 429 })
     }
     if (password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
@@ -60,7 +68,7 @@ export async function POST(request: Request) {
           console.error('Failed to send verification email:', e)
         }
       } else {
-        console.log('RESEND: Verification URL for', email, ':', verifyUrl)
+        console.warn('RESEND_API_KEY missing: verification email not sent')
       }
 
       return NextResponse.json({ ok: true, message: 'Verification email sent. Please check your inbox.' })
@@ -109,12 +117,12 @@ export async function POST(request: Request) {
         console.error('Failed to send verification email:', e)
       }
     } else {
-      console.log('RESEND: Verification URL for', email, ':', verifyUrl)
+      console.warn('RESEND_API_KEY missing: verification email not sent')
     }
 
     return NextResponse.json({ ok: true, message: 'Verification email sent. Please check your inbox.' })
   } catch (e: unknown) {
-    const err = e instanceof Error ? e.message : 'Unknown error'
-    return NextResponse.json({ error: err }, { status: 500 })
+    console.error('Register error:', e)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

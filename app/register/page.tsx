@@ -8,7 +8,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [newsletter, setNewsletter] = useState(true)
+  const [newsletter, setNewsletter] = useState(false) // opt-in must start unchecked (CASL)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -123,6 +123,10 @@ export default function RegisterPage() {
         <button type="submit" className="auth-btn" disabled={loading}>
           {loading ? 'Creating account…' : 'Create account'}
         </button>
+        <p className="auth-legal">
+          By creating an account you agree to the <Link href="/terms">Terms of Service</Link> and{' '}
+          <Link href="/privacy">Privacy Policy</Link>.
+        </p>
       </form>
 
       <div className="auth-foot">

@@ -8,15 +8,29 @@ const PUBLIC_PATHS = [
   '/register',
   '/verify',
   '/onboarding',
+  '/privacy',
+  '/terms',
 ]
+
+const TRUSTED_ORIGINS = new Set(['https://fiscit.com', 'https://www.fiscit.com'])
 
 const STATIC_RE = /\.(ico|png|svg|jpg|jpeg|webp|gif|txt|xml|html|css|js|woff|woff2|ttf)$/
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // All API routes handle their own auth
-  if (pathname.startsWith('/api/')) return NextResponse.next()
+  // All API routes handle their own auth. Mutating calls must come from our own
+  // pages: browsers always send Origin on cross-site POST/PUT/DELETE, so this
+  // blocks CSRF even where SameSite=Lax would not (e.g. other *.fiscit.com hosts).
+  if (pathname.startsWith('/api/')) {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+      const origin = request.headers.get('origin')
+      if (origin && origin !== request.nextUrl.origin && !TRUSTED_ORIGINS.has(origin)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+    return NextResponse.next()
+  }
 
   // Static files + Next internals
   if (

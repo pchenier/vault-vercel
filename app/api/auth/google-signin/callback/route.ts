@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { queryOne, run } from '@/lib/postgres'
 import { signToken, appSsoUrl, COOKIE_NAME } from '@/lib/auth-jwt'
+import { checkOAuthState } from '@/lib/oauth-state'
 
 export async function GET(request: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://fiscit.com'
@@ -10,6 +11,11 @@ export async function GET(request: NextRequest) {
 
   if (error || !code) {
     console.error('Google auth callback: error or no code', { error, code: !!code })
+    return NextResponse.redirect(`${baseUrl}/login?error=google_auth_failed`)
+  }
+  // The flow must have started in this browser (blocks login CSRF)
+  const stateCheck = NextResponse.next()
+  if (!checkOAuthState(request, stateCheck)) {
     return NextResponse.redirect(`${baseUrl}/login?error=google_auth_failed`)
   }
 
@@ -51,13 +57,13 @@ export async function GET(request: NextRequest) {
   const email = googleUser.email?.toLowerCase().trim()
   const name = googleUser.name || googleUser.given_name || ''
 
-  if (!email) {
+  if (!email || googleUser.email_verified !== true || !googleUser.sub) {
     return NextResponse.redirect(`${baseUrl}/login?error=google_no_email`)
   }
 
   // Check if user exists
-  const existingUser = await queryOne<{ id: number; email: string; email_confirmed: boolean; name: string | null }>(
-    'SELECT id, email, email_confirmed, name FROM users WHERE email = $1',
+  const existingUser = await queryOne<{ id: number; email: string; email_confirmed: boolean; name: string | null; google_id: string | null }>(
+    'SELECT id, email, email_confirmed, name, google_id FROM users WHERE email = $1',
     [email]
   )
 
@@ -67,9 +73,18 @@ export async function GET(request: NextRequest) {
     // Existing user — log them in
     userId = existingUser.id
 
-    // If they weren't email-confirmed yet, confirm them now (Google verified the email)
+    // Never attach a different Google account to an existing login
+    if (existingUser.google_id && existingUser.google_id !== googleUser.sub) {
+      return NextResponse.redirect(`${baseUrl}/login?error=google_auth_failed`)
+    }
+    // Unconfirmed account: someone may have pre-registered this address with a
+    // password they know. Google proves the real owner, so drop that password.
     if (!existingUser.email_confirmed) {
-      await run('UPDATE users SET email_confirmed = true WHERE id = $1', [userId])
+      await run('UPDATE users SET email_confirmed = true, password_hash = NULL, verify_token = NULL WHERE id = $1', [userId])
+      await run('DELETE FROM email_verifications WHERE user_id = $1', [userId])
+    }
+    if (!existingUser.google_id) {
+      await run('UPDATE users SET google_id = $1 WHERE id = $2', [googleUser.sub, userId])
     }
 
     // Update name if they don't have one

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
 import { run } from '@/lib/postgres'
+import { checkOAuthState } from '@/lib/oauth-state'
 
 export async function GET(request: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://fiscit.com'
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const error = searchParams.get('error')
 
-  if (error || !code) {
+  if (error || !code || !checkOAuthState(request, NextResponse.next())) {
     return NextResponse.redirect(`${baseUrl}/vault.html?gcal=error`)
   }
 

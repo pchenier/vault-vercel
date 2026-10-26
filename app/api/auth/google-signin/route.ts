@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { newOAuthState } from '@/lib/oauth-state'
 
 const SCOPES = [
   'openid',
@@ -16,7 +17,10 @@ export async function GET() {
     response_type: 'code',
     scope: SCOPES,
     access_type: 'online',
-    prompt: 'consent',
+    prompt: 'select_account',
   })
-  return NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
+  const response = NextResponse.redirect('https://accounts.google.com/o/oauth2/v2/auth')
+  params.set('state', newOAuthState(response))
+  response.headers.set('Location', `https://accounts.google.com/o/oauth2/v2/auth?${params}`)
+  return response
 }

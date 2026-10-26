@@ -61,6 +61,8 @@ export function Cta() {
         <div className="flex gap-6">
           <a href="#features" className="hover:text-text">Features</a>
           <a href="#pricing" className="hover:text-text">Pricing</a>
+          <a href="/privacy" className="hover:text-text">Privacy</a>
+          <a href="/terms" className="hover:text-text">Terms</a>
           <a href={SIGNIN_URL} className="hover:text-text">Sign in</a>
         </div>
         <span>© {new Date().getFullYear()} Fiscit</span>
