@@ -124,6 +124,7 @@ export default function LoginPage() {
             onChange={e => setPassword(e.target.value)}
           />
         </label>
+        <div className="auth-forgot"><Link href="/forgot" className="auth-link">Forgot password?</Link></div>
         <button type="submit" className="auth-btn" disabled={loading}>
           {loading ? 'Signing in…' : 'Sign in'}
         </button>

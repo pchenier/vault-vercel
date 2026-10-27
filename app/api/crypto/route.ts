@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { COOKIE_NAME } from '@/lib/auth-jwt'
+import { verifySession } from '@/lib/session'
 import { queryOne, run } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
@@ -41,7 +42,7 @@ export async function GET() {
   const cookieStore = await cookies()
   const jwt = cookieStore.get(COOKIE_NAME)?.value
   if (!jwt) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const payload = verifyToken(jwt)
+  const payload = await verifySession(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Get user's crypto holdings from Postgres
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
   const cookieStore = await cookies()
   const jwt = cookieStore.get(COOKIE_NAME)?.value
   if (!jwt) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const payload = verifyToken(jwt)
+  const payload = await verifySession(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()

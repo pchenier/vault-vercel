@@ -20,8 +20,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Too many attempts. Please wait 15 minutes and try again.' }, { status: 429 })
     }
 
-    const user = await queryOne<{ id: number; email: string; password_hash: string | null; email_confirmed: boolean }>(
-      'SELECT id, email, password_hash, email_confirmed FROM users WHERE email = $1',
+    const user = await queryOne<{ id: number; email: string; password_hash: string | null; email_confirmed: boolean; token_version: number }>(
+      'SELECT id, email, password_hash, email_confirmed, token_version FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     )
 
@@ -44,9 +44,9 @@ export async function POST(request: Request) {
       [user.id]
     )
 
-    const redirectTo = creds?.plaid_token ? appSsoUrl(String(user.id), user.email) : '/onboarding'
+    const redirectTo = creds?.plaid_token ? appSsoUrl(String(user.id), user.email, user.token_version) : '/onboarding'
 
-    const token = signToken(String(user.id), user.email)
+    const token = signToken(String(user.id), user.email, user.token_version)
     const response = NextResponse.json({ ok: true, redirectTo })
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,

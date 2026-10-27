@@ -118,9 +118,10 @@ export async function GET(request: NextRequest) {
   )
 
   // Sign JWT and set cookie
-  const token = signToken(String(userId), email)
+  const tv = (await queryOne<{ token_version: number }>('SELECT token_version FROM users WHERE id = $1', [userId]))?.token_version ?? 0
+  const token = signToken(String(userId), email, tv)
   const response = creds?.plaid_token
-    ? NextResponse.redirect(appSsoUrl(String(userId), email))
+    ? NextResponse.redirect(appSsoUrl(String(userId), email, tv))
     : NextResponse.redirect(`${baseUrl}/onboarding`)
   response.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,

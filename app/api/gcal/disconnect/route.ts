@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { COOKIE_NAME } from '@/lib/auth-jwt'
+import { verifySession } from '@/lib/session'
 import { run } from '@/lib/postgres'
 
 export const dynamic = 'force-dynamic'
@@ -9,7 +10,7 @@ export async function POST() {
   const cookieStore = await cookies()
   const jwt = cookieStore.get(COOKIE_NAME)?.value
   if (!jwt) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const payload = verifyToken(jwt)
+  const payload = await verifySession(jwt)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   await run(

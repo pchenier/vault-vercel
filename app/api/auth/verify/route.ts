@@ -29,10 +29,10 @@ export async function GET(request: Request) {
     }
 
     // Mark user as confirmed
-    const user = await queryOne<{ id: number; email: string }>(
+    const user = await queryOne<{ id: number; email: string; token_version: number }>(
       `UPDATE users SET email_confirmed = true, verify_token = NULL, updated_at = NOW() 
        WHERE id = $1 
-       RETURNING id, email`,
+       RETURNING id, email, token_version`,
       [verification.user_id]
     )
 
@@ -50,8 +50,8 @@ export async function GET(request: Request) {
     )
 
     // Sign in the user automatically
-    const jwt = signToken(String(user.id), user.email)
-    const redirectTo = creds?.plaid_token ? appSsoUrl(String(user.id), user.email) : '/onboarding'
+    const jwt = signToken(String(user.id), user.email, user.token_version)
+    const redirectTo = creds?.plaid_token ? appSsoUrl(String(user.id), user.email, user.token_version) : '/onboarding'
 
     const response = NextResponse.redirect(new URL(redirectTo, request.url))
     response.cookies.set(COOKIE_NAME, jwt, {

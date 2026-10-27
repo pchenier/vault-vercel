@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { queryOne, run } from '@/lib/postgres'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { COOKIE_NAME } from '@/lib/auth-jwt'
+import { verifySession } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const payload = verifyToken(token)
+    const payload = await verifySession(token)
     if (!payload?.sub) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }

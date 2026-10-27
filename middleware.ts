@@ -2,15 +2,10 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
 
-const PUBLIC_PATHS = [
-  '/',
-  '/login',
-  '/register',
-  '/verify',
-  '/onboarding',
-  '/privacy',
-  '/terms',
-]
+// Pages that need a session. Everything else is public, so a mistyped URL gets the
+// 404 page instead of a sign-in redirect. (Data is protected by the API routes, which
+// all check the session themselves.)
+const PROTECTED_PATHS = ['/import']
 
 const TRUSTED_ORIGINS = new Set(['https://fiscit.com', 'https://www.fiscit.com'])
 
@@ -43,8 +38,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Public pages
-  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+  if (!PROTECTED_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
     return NextResponse.next()
   }
 

@@ -144,6 +144,7 @@ body {
 .auth-foot{margin-top:22px;text-align:center;color:var(--muted);font-size:.88rem}
 .auth-foot a,.auth-link{color:var(--lime);font-weight:500;text-decoration:none}
 .auth-foot a:hover,.auth-link:hover{text-decoration:underline}
+.auth-forgot{margin:-6px 0 16px;text-align:right;font-size:.84rem}
 
 .auth-progress{display:flex;gap:6px;margin-bottom:26px}
 .auth-progress span{flex:1;height:4px;border-radius:2px;background:var(--line-strong);overflow:hidden;position:relative}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { COOKIE_NAME } from '@/lib/auth-jwt'
+import { verifySession } from '@/lib/session'
 import { run } from '@/lib/postgres'
 import { checkOAuthState } from '@/lib/oauth-state'
 
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
   const jwt = cookieStore.get(COOKIE_NAME)?.value
   if (!jwt) return NextResponse.redirect(`${baseUrl}/login`)
-  const payload = verifyToken(jwt)
+  const payload = await verifySession(jwt)
   if (!payload) return NextResponse.redirect(`${baseUrl}/login`)
 
   // Store tokens in vault_credentials

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { COOKIE_NAME } from '@/lib/auth-jwt'
+import { verifySession } from '@/lib/session'
 import { encryptToken } from '@/lib/token-crypto'
 import { queryOne, run } from '@/lib/postgres'
-import bcrypt from 'bcryptjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const cookieStore = await cookies()
     const token = cookieStore.get(COOKIE_NAME)?.value
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const payload = verifyToken(token)
+    const payload = await verifySession(token)
     if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await request.json()
@@ -20,16 +20,10 @@ export async function POST(request: Request) {
 
     const updates: string[] = []
 
+    // Changing a password with only a session cookie would let a stolen cookie take the
+    // account over. Passwords change through the emailed link (/forgot → /reset) instead.
     if (newPassword) {
-      if (newPassword.length < 8) {
-        return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
-      }
-      const hash = await bcrypt.hash(newPassword, 12)
-      await run(
-        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
-        [hash, Number(payload.sub)]
-      )
-      updates.push('password')
+      return NextResponse.json({ error: 'Use "Forgot password" to set a new password.' }, { status: 400 })
     }
 
     const credUpdates: Record<string, unknown> = {}

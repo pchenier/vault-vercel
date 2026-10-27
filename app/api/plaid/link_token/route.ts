@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { COOKIE_NAME } from '@/lib/auth-jwt'
+import { verifySession } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +10,7 @@ export async function POST() {
     const cookieStore = await cookies()
     const token = cookieStore.get(COOKIE_NAME)?.value
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const payload = verifyToken(token)
+    const payload = await verifySession(token)
     if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const res = await fetch('https://production.plaid.com/link/token/create', {

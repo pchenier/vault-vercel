@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { COOKIE_NAME } from '@/lib/auth-jwt'
+import { verifySession } from '@/lib/session'
 import { queryOne } from '@/lib/postgres'
 import { decryptToken } from '@/lib/token-crypto'
 
@@ -10,7 +11,7 @@ export async function GET() {
   const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE_NAME)?.value
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const payload = verifyToken(token)
+  const payload = await verifySession(token)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const creds = await queryOne<{ plaid_token: string | null; wise_token: string | null; wise_profile: string | null }>(
