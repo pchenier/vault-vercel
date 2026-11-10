@@ -24,6 +24,10 @@ export async function POST() {
         user: { client_user_id: payload.sub },
         client_name: 'Fiscit',
         products: ['transactions'],
+        // Holdings too, once Plaid enables investments on the account (PLAID_INVESTMENTS=1);
+        // asking for it before that makes every link token fail with INVALID_PRODUCT
+        ...(['1', 'true', 'yes'].includes((process.env.PLAID_INVESTMENTS || '').toLowerCase())
+          ? { optional_products: ['investments'] } : {}),
         country_codes: ['CA'],
         language: 'en',
       }),
