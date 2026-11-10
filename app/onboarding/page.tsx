@@ -36,6 +36,43 @@ function parseMoney(input: string): number {
   return Number.isFinite(n) && n >= 0 ? n : 0
 }
 
+function reportPlaidLink(event: string, err: any, meta: any, lastSearch: string) {
+  err = err || {}
+  meta = meta || {}
+  const inst = meta.institution || {}
+  fetch('/api/plaid/link_event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      event, status: meta.status || '', exit_status: meta.exit_status || '',
+      error_type: err.error_type || '', error_code: err.error_code || '',
+      institution_id: inst.institution_id || meta.institution_id || '',
+      institution_name: inst.name || meta.institution_name || '',
+      link_session_id: meta.link_session_id || '', request_id: meta.request_id || err.request_id || '',
+      last_search: lastSearch || '',
+    }),
+  }).catch(() => {})
+}
+
+function plaidErrorMessage(err: any, meta: any): string {
+  const bank = meta?.institution?.name || 'your bank'
+  const known: Record<string, string> = {
+    INVALID_CREDENTIALS: `The username or password for ${bank} was not accepted. Check them on ${bank}'s own site, then try again.`,
+    INVALID_MFA: `The security code for ${bank} was not accepted. Try again with a new code.`,
+    INSTITUTION_DOWN: `${bank} isn't responding right now. Try again in a little while, or skip and add it later.`,
+    INSTITUTION_NOT_RESPONDING: `${bank} isn't responding right now. Try again in a little while, or skip and add it later.`,
+    INSTITUTION_NOT_AVAILABLE: `${bank} isn't available right now. Try again later, or skip and add it later.`,
+    INSTITUTION_NOT_SUPPORTED: `${bank} can't be connected yet. We've been notified.`,
+    UNAUTHORIZED_INSTITUTION: `${bank} isn't enabled on Fiscit yet. We've been notified.`,
+    INSTITUTION_REGISTRATION_REQUIRED: `${bank} isn't enabled on Fiscit yet. We've been notified.`,
+    ITEM_LOCKED: `${bank} locked the account after too many attempts. Unlock it on ${bank}'s site, then try again.`,
+    USER_SETUP_REQUIRED: `${bank} needs you to finish a step on its own site or app first.`,
+  }
+  const code = err?.error_code || ''
+  return known[code] || (err?.display_message ? `${bank}: ${err.display_message}` : `Could not connect ${bank}${code ? ` (${code})` : ''}. You can try again or skip and add it later.`)
+}
+
 export default function OnboardingPage() {
   const [step, setStep] = useState<Step>('name')
   const [name, setName] = useState('')
@@ -127,6 +164,7 @@ export default function OnboardingPage() {
         return
       }
       // Load Plaid Link dynamically
+      let lastSearch = ''
       const handler = (window as any).Plaid.create({
         token: data.link_token,
         onSuccess: async (publicToken: string) => {
@@ -149,8 +187,16 @@ export default function OnboardingPage() {
             setStep('crypto')
           }
         },
-        onExit: () => {
+        onEvent: (name: string, meta: any) => {
+          if (name === 'SEARCH_INSTITUTION' && meta?.institution_search_query) lastSearch = meta.institution_search_query
+          if (name === 'ERROR') reportPlaidLink('error', meta, meta, lastSearch)
+        },
+        onExit: (err: any, meta: any) => {
           setPlaidLoading(false)
+          // Closing without connecting is reported too: "my bank isn't listed" shows up
+          // as an exit whose last search found nothing
+          reportPlaidLink('exit', err, meta, lastSearch)
+          if (err) setError(plaidErrorMessage(err, meta))
         },
       })
       handler.open()
