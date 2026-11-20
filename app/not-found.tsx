@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
 import { ErrorScreen } from "@/components/error-screen";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Page not found — Fiscit", robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t.errors.notFoundMeta, robots: { index: false } };
+}
 
-export default function NotFound() {
+export default async function NotFound() {
+  const { lang, t } = await getI18n();
   return (
     <ErrorScreen
+      lang={lang}
       code="404"
-      title="This page doesn't exist."
-      message="The link may be broken, or the page has moved. Your money is still right where you left it."
+      title={t.errors.notFoundTitle}
+      message={t.errors.notFoundMessage}
     />
   );
 }

@@ -4,14 +4,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "./logo";
+import { LangSwitch } from "./lang-switch";
+import { useI18n } from "@/lib/i18n/client";
 
 const ease = [0.16, 1, 0.3, 1] as const;
-
-const POINTS = [
-  "Every bank, card, Wise balance and wallet in one place",
-  "Read-only connections — we can never move your money",
-  "Spending sorted automatically, in English or French",
-];
 
 // Shared frame for login, register, verify and onboarding: brand panel on the
 // left (desktop), animated card on the right. `stepKey` re-animates the card
@@ -25,6 +21,7 @@ export function AuthShell({
   stepKey?: string;
   wide?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="auth">
       <div className="grid-bg pointer-events-none absolute inset-0" />
@@ -36,9 +33,10 @@ export function AuthShell({
       />
 
       <header className="auth-top">
-        <Link href="/" aria-label="Fiscit home">
+        <Link href="/" aria-label={t.common.homeAria}>
           <Logo />
         </Link>
+        <LangSwitch />
       </header>
 
       <div className="auth-layout">
@@ -48,9 +46,9 @@ export function AuthShell({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease }}
           >
-            Your money,
+            {t.auth.brand1}
             <br />
-            <em>finally clear.</em>
+            <em>{t.auth.brand2}</em>
           </motion.h2>
           <svg viewBox="0 0 320 90" className="auth-spark">
             <defs>
@@ -78,7 +76,7 @@ export function AuthShell({
             />
           </svg>
           <ul>
-            {POINTS.map((p, i) => (
+            {t.auth.points.map((p, i) => (
               <motion.li
                 key={p}
                 initial={{ opacity: 0, x: -10 }}
@@ -141,9 +139,10 @@ export function GoogleButton({ label }: { label: string }) {
 }
 
 export function AuthSpinner() {
+  const { t } = useI18n();
   return (
     <div className="auth auth-center">
-      <span className="auth-spinner" aria-label="Loading" />
+      <span className="auth-spinner" aria-label={t.common.loading} />
     </div>
   );
 }

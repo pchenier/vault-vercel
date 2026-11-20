@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { ArrowRight, Lock } from "lucide-react";
 import { DashboardMock } from "./dashboard-mock";
 import { SIGNIN_URL, SIGNUP_URL } from "@/lib/links";
+import { useI18n } from "@/lib/i18n/client";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -29,6 +30,7 @@ function Words({ text, delay = 0, className = "" }: { text: string; delay?: numb
 }
 
 export function Hero() {
+  const { t } = useI18n();
   const ref = useRef<HTMLElement>(null);
 
   // Cursor-follow glow + card tilt, both spring-smoothed.
@@ -75,16 +77,16 @@ export function Hero() {
             transition={{ duration: 0.6, ease }}
             className="group mb-7 inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface/70 px-3 py-1 text-xs text-muted backdrop-blur transition-colors hover:border-lime/40 hover:text-text"
           >
-            <span className="rounded-full bg-lime px-1.5 py-px text-[10px] font-bold uppercase tracking-wider text-bg">New</span>
-            Crypto + Questrade now in your net worth
+            <span className="rounded-full bg-lime px-1.5 py-px text-[10px] font-bold uppercase tracking-wider text-bg">{t.hero.badgeNew}</span>
+            {t.hero.badge}
             <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
           </motion.a>
 
           <h1 className="text-[clamp(2.6rem,7vw,5.2rem)] font-semibold leading-[0.98] tracking-[-0.045em]">
-            <Words text="Your money," />
+            <Words text={t.hero.line1} />
             <br />
             <Words
-              text="finally clear."
+              text={t.hero.line2}
               delay={0.25}
               className="font-serif text-[1.08em] font-normal italic tracking-[-0.02em] text-lime"
             />
@@ -96,8 +98,7 @@ export function Hero() {
             transition={{ duration: 0.8, delay: 0.6, ease }}
             className="mx-auto mt-6 max-w-md text-[1.05rem] leading-relaxed text-muted lg:mx-0"
           >
-            Every bank, card, Wise balance, crypto wallet and investment account in one calm dashboard. Net worth,
-            spending and savings rate — updated on their own.
+            {t.hero.sub}
           </motion.p>
 
           <motion.div
@@ -111,14 +112,14 @@ export function Hero() {
               className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-lime px-6 py-3 font-semibold text-bg transition-transform hover:-translate-y-0.5"
             >
               <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              <span className="relative">Start free</span>
+              <span className="relative">{t.hero.startFree}</span>
               <ArrowRight size={16} className="relative transition-transform group-hover:translate-x-0.5" />
             </a>
             <a
               href={SIGNIN_URL}
               className="rounded-xl border border-line-strong px-6 py-3 font-medium transition-colors hover:border-[#3a3a3a] hover:bg-surface"
             >
-              Sign in
+              {t.hero.signIn}
             </a>
           </motion.div>
 
@@ -128,7 +129,7 @@ export function Hero() {
             transition={{ delay: 1.1, duration: 0.8 }}
             className="mt-6 flex items-center justify-center gap-2 text-xs text-dim lg:justify-start"
           >
-            <Lock size={12} /> Read-only connections · 14-day free trial · No card required
+            <Lock size={12} /> {t.hero.reassure}
           </motion.div>
         </motion.div>
 
@@ -149,8 +150,8 @@ export function Hero() {
               style={{ translateZ: 60 }}
               className="absolute -right-8 top-[42%] hidden rounded-2xl border border-line-strong bg-surface-2/95 px-4 py-3 shadow-2xl backdrop-blur xl:block"
             >
-              <div className="text-[11px] uppercase tracking-wider text-muted">Savings rate</div>
-              <div className="text-xl font-semibold text-lime">31%</div>
+              <div className="text-[11px] uppercase tracking-wider text-muted">{t.hero.savingsRate}</div>
+              <div className="text-xl font-semibold text-lime">{t.hero.savingsValue}</div>
             </motion.div>
 
             <motion.div
@@ -162,8 +163,8 @@ export function Hero() {
             >
               <span className="grid size-8 place-items-center rounded-full bg-red/15 text-sm text-red">!</span>
               <div>
-                <div className="text-xs font-medium">3 forgotten subscriptions</div>
-                <div className="text-[11px] text-muted">$47.97 / month</div>
+                <div className="text-xs font-medium">{t.hero.subsTitle}</div>
+                <div className="text-[11px] text-muted">{t.hero.subsAmount}</div>
               </div>
             </motion.div>
           </motion.div>

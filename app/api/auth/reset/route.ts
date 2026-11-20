@@ -4,23 +4,26 @@ import bcrypt from 'bcryptjs'
 import { pool } from '@/lib/postgres'
 import { rateLimited, clientIp } from '@/lib/rate-limit'
 import { signToken, COOKIE_NAME } from '@/lib/auth-jwt'
+import { langFromRequest } from '@/lib/i18n/server'
+import { serverMessages } from '@/lib/i18n/server-messages'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
+  const m = serverMessages(langFromRequest(request)).api
   try {
     const { token, password } = await request.json()
     if (typeof token !== 'string' || !token || token.length > 100 || typeof password !== 'string') {
-      return NextResponse.json({ error: 'This reset link is invalid. Request a new one.' }, { status: 400 })
+      return NextResponse.json({ error: m.resetInvalid }, { status: 400 })
     }
     if (password.length < 8) {
-      return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
+      return NextResponse.json({ error: m.resetPasswordMin8 }, { status: 400 })
     }
     if (Buffer.byteLength(password) > 72) {
-      return NextResponse.json({ error: 'Password is too long (72 bytes max).' }, { status: 400 })
+      return NextResponse.json({ error: m.resetPasswordTooLong }, { status: 400 })
     }
     if (await rateLimited(`reset-ip:${clientIp(request)}`, 10, 900)) {
-      return NextResponse.json({ error: 'Too many attempts. Please wait 15 minutes.' }, { status: 429 })
+      return NextResponse.json({ error: m.tooManyReset }, { status: 429 })
     }
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
@@ -38,7 +41,7 @@ export async function POST(request: Request) {
       )
       if (reset.rows.length === 0) {
         await client.query('ROLLBACK')
-        return NextResponse.json({ error: 'This reset link has expired or was already used. Request a new one.' }, { status: 400 })
+        return NextResponse.json({ error: m.resetExpired }, { status: 400 })
       }
       const userId = reset.rows[0].user_id
       // Opening the emailed link also proves the address, so it counts as verified
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
     } finally {
       client.release()
     }
-    if (!user) return NextResponse.json({ error: 'This reset link is invalid. Request a new one.' }, { status: 400 })
+    if (!user) return NextResponse.json({ error: m.resetInvalid }, { status: 400 })
 
     console.log(`Password reset completed for user ${user.id}; other sessions revoked`)
     const response = NextResponse.json({ ok: true })
@@ -70,6 +73,6 @@ export async function POST(request: Request) {
     return response
   } catch (e) {
     console.error('Reset password error:', e instanceof Error ? e.message : e)
-    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
+    return NextResponse.json({ error: m.generic }, { status: 500 })
   }
 }

@@ -1,4 +1,6 @@
 import { Resend } from 'resend'
+import type { Lang } from '@/lib/i18n/config'
+import { serverMessages } from '@/lib/i18n/server-messages'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -25,4 +27,16 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     console.error('Failed to send email:', e instanceof Error ? e.message : e)
     return false
   }
+}
+
+// Email-verification message (register, resend-verify), in the visitor's language.
+export function sendVerificationEmail(to: string, verifyUrl: string, lang: Lang): Promise<boolean> {
+  const m = serverMessages(lang).email.verify
+  return sendEmail(to, m.subject, emailCard(m.title, m.text, { label: m.button, url: verifyUrl }, m.footnote))
+}
+
+// Password-reset message (forgot), in the visitor's language.
+export function sendPasswordResetEmail(to: string, resetUrl: string, minutes: number, lang: Lang): Promise<boolean> {
+  const m = serverMessages(lang).email.reset
+  return sendEmail(to, m.subject, emailCard(m.title, m.text, { label: m.button, url: resetUrl }, m.footnote(minutes)))
 }

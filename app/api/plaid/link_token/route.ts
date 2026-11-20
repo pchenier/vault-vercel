@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { COOKIE_NAME } from '@/lib/auth-jwt'
 import { verifySession } from '@/lib/session'
+import { langFromRequest } from '@/lib/i18n/server'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get(COOKIE_NAME)?.value
@@ -29,7 +30,8 @@ export async function POST() {
         ...(['1', 'true', 'yes'].includes((process.env.PLAID_INVESTMENTS || '').toLowerCase())
           ? { optional_products: ['investments'] } : {}),
         country_codes: ['CA'],
-        language: 'en',
+        // Plaid Link's own screens follow the site language (fiscit_lang cookie)
+        language: langFromRequest(request),
       }),
     })
     const data = await res.json()

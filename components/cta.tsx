@@ -4,7 +4,9 @@ import { motion, useMotionValue, useScroll, useSpring, useTransform } from "moti
 import { useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "./logo";
+import { LangSwitch } from "./lang-switch";
 import { SIGNIN_URL, SIGNUP_URL } from "@/lib/links";
+import { useI18n } from "@/lib/i18n/client";
 
 function MagneticButton({ href, children }: { href: string; children: React.ReactNode }) {
   const x = useMotionValue(0);
@@ -36,6 +38,7 @@ function MagneticButton({ href, children }: { href: string; children: React.Reac
 }
 
 export function Cta() {
+  const { t } = useI18n();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end end"] });
   const scale = useTransform(scrollYProgress, [0, 1], [0.85, 1]);
@@ -46,26 +49,29 @@ export function Cta() {
       <div className="grid-bg pointer-events-none absolute inset-0 rotate-180" />
       <motion.div style={{ scale, opacity }} className="relative mx-auto max-w-4xl text-center">
         <h2 className="text-[clamp(2.6rem,8vw,6rem)] font-semibold leading-[0.95] tracking-[-0.05em]">
-          Stop guessing.
+          {t.cta.line1}
           <br />
-          <span className="font-serif font-normal italic text-lime">Start knowing.</span>
+          <span className="font-serif font-normal italic text-lime">{t.cta.line2}</span>
         </h2>
-        <p className="mx-auto mt-6 max-w-md text-muted">Connect your first account in under a minute. Free for 14 days.</p>
+        <p className="mx-auto mt-6 max-w-md text-muted">{t.cta.sub}</p>
         <div className="mt-10">
-          <MagneticButton href={SIGNUP_URL}>Create your dashboard</MagneticButton>
+          <MagneticButton href={SIGNUP_URL}>{t.cta.button}</MagneticButton>
         </div>
       </motion.div>
 
       <footer className="relative mx-auto mt-32 flex max-w-6xl flex-col items-center justify-between gap-4 border-t border-line pt-8 text-sm text-dim sm:flex-row">
         <Logo />
-        <div className="flex gap-6">
-          <a href="#features" className="hover:text-text">Features</a>
-          <a href="#pricing" className="hover:text-text">Pricing</a>
-          <a href="/privacy" className="hover:text-text">Privacy</a>
-          <a href="/terms" className="hover:text-text">Terms</a>
-          <a href={SIGNIN_URL} className="hover:text-text">Sign in</a>
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+          <a href="#features" className="hover:text-text">{t.footer.features}</a>
+          <a href="#pricing" className="hover:text-text">{t.footer.pricing}</a>
+          <a href="/privacy" className="hover:text-text">{t.footer.privacy}</a>
+          <a href="/terms" className="hover:text-text">{t.footer.terms}</a>
+          <a href={SIGNIN_URL} className="hover:text-text">{t.footer.signIn}</a>
         </div>
-        <span>© {new Date().getFullYear()} Fiscit</span>
+        <div className="flex items-center gap-4">
+          <LangSwitch />
+          <span>© {new Date().getFullYear()} Fiscit</span>
+        </div>
       </footer>
     </section>
   );

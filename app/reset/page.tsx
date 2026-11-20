@@ -2,8 +2,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AuthShell, AuthTitle } from '@/components/auth-shell'
+import { useI18n } from '@/lib/i18n/client'
 
 export default function ResetPage() {
+  const { t } = useI18n()
   const [token, setToken] = useState<string | null>(null)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -27,7 +29,7 @@ export default function ResetPage() {
     e.preventDefault()
     setError('')
     if (password !== confirm) {
-      setError("The two passwords don't match.")
+      setError(t.reset.mismatch)
       return
     }
     setLoading(true)
@@ -39,9 +41,9 @@ export default function ResetPage() {
       })
       const data = await res.json()
       if (data.ok) setDone(true)
-      else setError(data.error || 'Something went wrong. Please try again.')
+      else setError(data.error || t.reset.generic)
     } catch {
-      setError('Network error. Please try again.')
+      setError(t.auth.networkError)
     } finally {
       setLoading(false)
     }
@@ -52,13 +54,13 @@ export default function ResetPage() {
   if (done) {
     return (
       <AuthShell>
-        <title>Fiscit — Password updated</title>
-        <AuthTitle sub="Your new password is set, and every other device has been signed out.">
-          All <em>set.</em>
+        <title>{t.reset.doneTitle}</title>
+        <AuthTitle sub={t.reset.doneSub}>
+          {t.reset.doneHeading((s) => <em>{s}</em>)}
         </AuthTitle>
         {/* /login sends a signed-in user straight on to the dashboard */}
         <a className="auth-btn" href="/login" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
-          Continue to Fiscit
+          {t.reset.continue}
         </a>
       </AuthShell>
     )
@@ -66,19 +68,19 @@ export default function ResetPage() {
 
   return (
     <AuthShell>
-      <title>Fiscit — Choose a new password</title>
-      <AuthTitle sub="At least 8 characters. Signing in with the new password will work everywhere; old sessions are signed out.">
-        Choose a new <em>password.</em>
+      <title>{t.reset.title}</title>
+      <AuthTitle sub={t.reset.sub}>
+        {t.reset.heading((s) => <em>{s}</em>)}
       </AuthTitle>
       {error && <div className="auth-error" role="alert">{error}</div>}
       {!token ? (
         <div className="auth-error" role="alert">
-          This link is missing its code. Open the link from your email again, or <Link href="/forgot" className="auth-link">request a new one</Link>.
+          {t.reset.missingToken((s) => <Link href="/forgot" className="auth-link">{s}</Link>)}
         </div>
       ) : (
         <form onSubmit={handleSubmit} style={{ marginTop: error ? 18 : 0 }}>
           <label className="auth-field">
-            <span>New password</span>
+            <span>{t.reset.newPassword}</span>
             <input
               type="password"
               required
@@ -90,7 +92,7 @@ export default function ResetPage() {
             />
           </label>
           <label className="auth-field">
-            <span>Confirm password</span>
+            <span>{t.reset.confirmPassword}</span>
             <input
               type="password"
               required
@@ -102,12 +104,12 @@ export default function ResetPage() {
             />
           </label>
           <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? 'Saving…' : 'Save new password'}
+            {loading ? t.reset.submitting : t.reset.submit}
           </button>
         </form>
       )}
       <div className="auth-foot">
-        Link expired? <Link href="/forgot">Send a new one</Link>
+        {t.reset.expired} <Link href="/forgot">{t.reset.sendNew}</Link>
       </div>
     </AuthShell>
   )

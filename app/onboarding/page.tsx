@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { Landmark, Plus, X } from 'lucide-react'
 import { AuthShell, AuthTitle } from '@/components/auth-shell'
+import { useI18n } from '@/lib/i18n/client'
+import type { Dictionary } from '@/lib/i18n/dictionaries'
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.fiscit.com'
 
@@ -55,25 +57,24 @@ function reportPlaidLink(event: string, err: any, meta: any, lastSearch: string)
   }).catch(() => {})
 }
 
-function plaidErrorMessage(err: any, meta: any): string {
-  const bank = meta?.institution?.name || 'your bank'
-  const known: Record<string, string> = {
-    INVALID_CREDENTIALS: `The username or password for ${bank} was not accepted. Check them on ${bank}'s own site, then try again.`,
-    INVALID_MFA: `The security code for ${bank} was not accepted. Try again with a new code.`,
-    INSTITUTION_DOWN: `${bank} isn't responding right now. Try again in a little while, or skip and add it later.`,
-    INSTITUTION_NOT_RESPONDING: `${bank} isn't responding right now. Try again in a little while, or skip and add it later.`,
-    INSTITUTION_NOT_AVAILABLE: `${bank} isn't available right now. Try again later, or skip and add it later.`,
-    INSTITUTION_NOT_SUPPORTED: `${bank} can't be connected yet. We've been notified.`,
-    UNAUTHORIZED_INSTITUTION: `${bank} isn't enabled on Fiscit yet. We've been notified.`,
-    INSTITUTION_REGISTRATION_REQUIRED: `${bank} isn't enabled on Fiscit yet. We've been notified.`,
-    ITEM_LOCKED: `${bank} locked the account after too many attempts. Unlock it on ${bank}'s site, then try again.`,
-    USER_SETUP_REQUIRED: `${bank} needs you to finish a step on its own site or app first.`,
-  }
+type PlaidMessages = Dictionary['onboarding']['plaid']
+type KnownPlaidCode = Exclude<keyof PlaidMessages, 'yourBank' | 'display' | 'fallback'>
+const KNOWN_PLAID_CODES: KnownPlaidCode[] = [
+  'INVALID_CREDENTIALS', 'INVALID_MFA', 'INSTITUTION_DOWN', 'INSTITUTION_NOT_RESPONDING',
+  'INSTITUTION_NOT_AVAILABLE', 'INSTITUTION_NOT_SUPPORTED', 'UNAUTHORIZED_INSTITUTION',
+  'INSTITUTION_REGISTRATION_REQUIRED', 'ITEM_LOCKED', 'USER_SETUP_REQUIRED',
+]
+
+function plaidErrorMessage(err: any, meta: any, m: PlaidMessages): string {
+  const bank = meta?.institution?.name || m.yourBank
   const code = err?.error_code || ''
-  return known[code] || (err?.display_message ? `${bank}: ${err.display_message}` : `Could not connect ${bank}${code ? ` (${code})` : ''}. You can try again or skip and add it later.`)
+  const known = KNOWN_PLAID_CODES.find(k => k === code)
+  return known ? m[known](bank) : (err?.display_message ? m.display(bank, err.display_message) : m.fallback(bank, code))
 }
 
 export default function OnboardingPage() {
+  const { t } = useI18n()
+  const o = t.onboarding
   const [step, setStep] = useState<Step>('name')
   const [name, setName] = useState('')
   const [invRows, setInvRows] = useState<InvestRow[]>([emptyRow()])
@@ -120,7 +121,7 @@ export default function OnboardingPage() {
       }
       setStep('bank')
     } catch {
-      setError('Failed to save name. Please try again.')
+      setError(o.nameError)
     } finally {
       setLoading(false)
     }
@@ -159,7 +160,7 @@ export default function OnboardingPage() {
       const data = await res.json()
       if (!data.link_token) {
         console.error('Plaid link_token error:', data)
-        setError('Could not connect to bank. You can skip and add later.')
+        setError(o.bankTokenError)
         setPlaidLoading(false)
         return
       }
@@ -179,11 +180,11 @@ export default function OnboardingPage() {
             if (exchangeData.ok) {
               setStep('crypto')
             } else {
-              setError('Bank connected but token save failed. You can continue.')
+              setError(o.bankSaveFailed)
               setStep('crypto')
             }
           } catch {
-            setError('Bank connected but could not save. You can continue.')
+            setError(o.bankSaveError)
             setStep('crypto')
           }
         },
@@ -196,13 +197,13 @@ export default function OnboardingPage() {
           // Closing without connecting is reported too: "my bank isn't listed" shows up
           // as an exit whose last search found nothing
           reportPlaidLink('exit', err, meta, lastSearch)
-          if (err) setError(plaidErrorMessage(err, meta))
+          if (err) setError(plaidErrorMessage(err, meta, o.plaid))
         },
       })
       handler.open()
     } catch (e) {
       console.error('Plaid Link failed:', e)
-      setError('Could not load bank connection. Skip and add later.')
+      setError(o.plaidLoadError)
       setPlaidLoading(false)
     }
   }
@@ -226,7 +227,7 @@ export default function OnboardingPage() {
       }
       setStep('invest')
     } catch {
-      setError('Could not save crypto. Skip and add later.')
+      setError(o.cryptoError)
       setStep('invest')
     } finally {
       setLoading(false)
@@ -249,7 +250,7 @@ export default function OnboardingPage() {
           credentials: 'include'
         })
         if (!res.ok) {
-          setError('Could not save your investment accounts. Try again, or skip and add them later.')
+          setError(o.investError)
           setLoading(false)
           return
         }
@@ -263,7 +264,7 @@ export default function OnboardingPage() {
 
       await goToDashboard()
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(o.generic)
       setLoading(false)
     }
   }
@@ -275,56 +276,56 @@ export default function OnboardingPage() {
   }
 
   const steps: { key: Step; label: string; num: number }[] = [
-    { key: 'name', label: 'Name', num: 1 },
-    { key: 'bank', label: 'Bank', num: 2 },
-    { key: 'crypto', label: 'Crypto', num: 3 },
-    { key: 'invest', label: 'Investments', num: 4 },
+    { key: 'name', label: o.steps.name, num: 1 },
+    { key: 'bank', label: o.steps.bank, num: 2 },
+    { key: 'crypto', label: o.steps.crypto, num: 3 },
+    { key: 'invest', label: o.steps.invest, num: 4 },
   ]
   const currentIdx = steps.findIndex(s => s.key === step)
 
   return (
     <AuthShell stepKey={step}>
-      <title>Fiscit — Setup</title>
-      <div className="auth-progress" aria-label={`Step ${currentIdx + 1} of ${steps.length}`}>
+      <title>{o.title}</title>
+      <div className="auth-progress" aria-label={o.stepOf(currentIdx + 1, steps.length)}>
         {steps.map((s, i) => (
           <span key={s.key}><i style={{ transform: `scaleX(${i <= currentIdx ? 1 : 0})` }} /></span>
         ))}
       </div>
-      <div className="auth-steplabel">Step {currentIdx + 1} of {steps.length} · {steps[currentIdx]?.label}</div>
+      <div className="auth-steplabel">{o.stepOf(currentIdx + 1, steps.length)} · {steps[currentIdx]?.label}</div>
 
       {step === 'name' && (
         <>
-          <AuthTitle sub="Pick a name for your account.">What should we <em>call you?</em></AuthTitle>
+          <AuthTitle sub={o.nameSub}>{o.nameHeading((s) => <em>{s}</em>)}</AuthTitle>
           <form onSubmit={e => { e.preventDefault(); saveName() }}>
-            <input type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} autoFocus />
+            <input type="text" placeholder={o.namePlaceholder} value={name} onChange={e => setName(e.target.value)} autoFocus />
             <button type="submit" className="auth-btn" disabled={loading}>
-              {loading ? 'Saving…' : 'Continue'}
+              {loading ? o.saving : o.continue}
             </button>
           </form>
-          <button className="auth-skip" onClick={() => { setStep('bank') }}>Skip for now</button>
+          <button className="auth-skip" onClick={() => { setStep('bank') }}>{o.skipForNow}</button>
         </>
       )}
 
       {step === 'bank' && (
         <>
-          <AuthTitle sub="Link your accounts to see balances and transactions in one place. Read-only — Fiscit can never move money.">
-            Connect your <em>bank.</em>
+          <AuthTitle sub={o.bankSub}>
+            {o.bankHeading((s) => <em>{s}</em>)}
           </AuthTitle>
           <button className="auth-btn white" onClick={openPlaid} disabled={plaidLoading}>
             <Landmark size={17} />
-            {plaidLoading ? 'Connecting…' : 'Connect with Plaid'}
+            {plaidLoading ? o.connecting : o.connectPlaid}
           </button>
           {error && <div className="auth-error" role="alert">{error}</div>}
           <button className="auth-btn ghost" onClick={skipBank} style={{ marginTop: 10 }}>
-            Skip, add later
+            {o.skipAddLater}
           </button>
         </>
       )}
 
       {step === 'crypto' && (
         <>
-          <AuthTitle sub="Select the coins you hold and enter amounts. You can always add more later.">
-            Track your <em>crypto.</em>
+          <AuthTitle sub={o.cryptoSub}>
+            {o.cryptoHeading((s) => <em>{s}</em>)}
           </AuthTitle>
           <div className="auth-coins">
             {COINS.map(coin => {
@@ -360,48 +361,48 @@ export default function OnboardingPage() {
             })}
           </div>
           <button className="auth-btn" onClick={saveCryptoAndContinue} disabled={loading}>
-            {loading ? 'Saving…' : 'Continue'}
+            {loading ? o.saving : o.continue}
           </button>
-          <button className="auth-skip" onClick={() => { setStep('invest') }}>Skip crypto</button>
+          <button className="auth-skip" onClick={() => { setStep('invest') }}>{o.skipCrypto}</button>
         </>
       )}
 
       {step === 'invest' && (
         <>
-          <AuthTitle sub="TFSA, RRSP, brokerage… Pick the platform and enter today's balance — you can update it anytime from your dashboard.">
-            Add investment <em>accounts.</em>
+          <AuthTitle sub={o.investSub}>
+            {o.investHeading((s) => <em>{s}</em>)}
           </AuthTitle>
           <div className="auth-invlist">
             {invRows.map((row, i) => (
               <div key={i} className="auth-invrow">
                 <div className="auth-invrow-top">
                   <select
-                    aria-label="Platform"
+                    aria-label={o.platform}
                     value={row.platform}
                     onChange={e => setInvRows(rows => rows.map((r, j) => j === i ? { ...r, platform: e.target.value } : r))}
                   >
-                    <option value="">Choose a platform…</option>
-                    {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+                    <option value="">{o.choosePlatform}</option>
+                    {PLATFORMS.map(p => <option key={p} value={p}>{o.platforms[p] ?? p}</option>)}
                   </select>
                   {invRows.length > 1 && (
-                    <button type="button" className="auth-invrm" aria-label="Remove account"
+                    <button type="button" className="auth-invrm" aria-label={o.removeAccount}
                       onClick={() => setInvRows(rows => rows.filter((_, j) => j !== i))}>
                       <X size={15} />
                     </button>
                   )}
                 </div>
-                <div className="auth-chips" role="radiogroup" aria-label="Account type">
-                  {ACCOUNT_TYPES.map(t => (
-                    <button type="button" key={t} role="radio" aria-checked={row.type === t}
-                      className={row.type === t ? 'on' : ''}
-                      onClick={() => setInvRows(rows => rows.map((r, j) => j === i ? { ...r, type: t } : r))}>
-                      {t}
+                <div className="auth-chips" role="radiogroup" aria-label={o.accountType}>
+                  {ACCOUNT_TYPES.map(type => (
+                    <button type="button" key={type} role="radio" aria-checked={row.type === type}
+                      className={row.type === type ? 'on' : ''}
+                      onClick={() => setInvRows(rows => rows.map((r, j) => j === i ? { ...r, type } : r))}>
+                      {o.accountTypes[type] ?? type}
                     </button>
                   ))}
                 </div>
                 <div className="auth-money">
                   <span>$</span>
-                  <input type="text" inputMode="decimal" placeholder="Current balance" aria-label="Current balance"
+                  <input type="text" inputMode="decimal" placeholder={o.currentBalance} aria-label={o.currentBalance}
                     value={row.balance}
                     onChange={e => setInvRows(rows => rows.map((r, j) => j === i ? { ...r, balance: e.target.value } : r))} />
                 </div>
@@ -410,14 +411,14 @@ export default function OnboardingPage() {
           </div>
           {invRows.length < 10 && (
             <button type="button" className="auth-add" onClick={() => setInvRows(rows => [...rows, emptyRow()])}>
-              <Plus size={15} /> Add another account
+              <Plus size={15} /> {o.addAccount}
             </button>
           )}
           {error && <div className="auth-error" role="alert">{error}</div>}
           <button className="auth-btn" onClick={finish} disabled={loading}>
-            {loading ? 'Setting up…' : 'Go to my dashboard'}
+            {loading ? o.settingUp : o.goDashboard}
           </button>
-          <button className="auth-skip" onClick={skipAll}>Skip, add later</button>
+          <button className="auth-skip" onClick={skipAll}>{o.skipAddLater}</button>
         </>
       )}
     </AuthShell>

@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { Bitcoin, Building2, Globe2, LineChart, PiggyBank } from "lucide-react";
 import { CountUp } from "./count-up";
+import { useI18n } from "@/lib/i18n/client";
 
 const W = 480;
 const H = 132;
@@ -36,17 +37,20 @@ function toPath(values: number[]) {
   return d;
 }
 
-const ACCOUNTS = [
-  { icon: Building2, name: "Chequing", meta: "Bank · Plaid", amount: "$8,412.30", delta: "+$1,240" },
-  { icon: PiggyBank, name: "High-interest savings", meta: "Bank · Plaid", amount: "$42,150.00", delta: "+$600" },
-  { icon: LineChart, name: "TFSA", meta: "Investments · Questrade", amount: "$61,880.12", delta: "+2.8%" },
-  { icon: Globe2, name: "Wise · USD", meta: "Multi-currency", amount: "$3,250.00", delta: "≈ C$4,485" },
-  { icon: Bitcoin, name: "Crypto wallets", meta: "Solana · Bitcoin", amount: "$4,210.44", delta: "−1.9%", down: true },
+// Icons per row; names and amounts come from the dictionary, in the same order.
+const ACCOUNT_ROWS = [
+  { icon: Building2 },
+  { icon: PiggyBank },
+  { icon: LineChart },
+  { icon: Globe2 },
+  { icon: Bitcoin, down: true },
 ];
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
 export function DashboardMock() {
+  const { t } = useI18n();
+  const accounts = ACCOUNT_ROWS.map((r, i) => ({ ...r, ...t.dashboard.accounts[i] }));
   const [range, setRange] = useState("6M");
   const line = useMemo(() => toPath(SERIES[range]), [range]);
   const area = `${line} L ${W} ${H} L 0 ${H} Z`;
@@ -70,16 +74,16 @@ export function DashboardMock() {
             />
             <span className="relative size-2 rounded-full bg-lime" />
           </span>
-          Synced just now
+          {t.dashboard.synced}
         </div>
       </div>
 
       {/* net worth */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted">Net worth · CAD</div>
+          <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted">{t.dashboard.netWorth}</div>
           <div className="mt-1 text-[2.1rem] font-semibold leading-none tracking-tight sm:text-[2.6rem]">
-            <CountUp to={184320.57} decimals={2} prefix="$" duration={2.2} delay={0.5} />
+            <CountUp to={184320.57} decimals={2} currency duration={2.2} delay={0.5} />
           </div>
         </div>
         <motion.div
@@ -88,7 +92,7 @@ export function DashboardMock() {
           transition={{ delay: 1.6, duration: 0.5, ease }}
           className="rounded-full bg-lime-dim px-2.5 py-1 text-xs font-semibold text-lime"
         >
-          ▲ 4.2% this month
+          {t.dashboard.monthDelta}
         </motion.div>
       </div>
 
@@ -141,7 +145,7 @@ export function DashboardMock() {
               {range === r && (
                 <motion.span layoutId="range-pill" className="absolute inset-0 rounded-md bg-lime" transition={{ type: "spring", stiffness: 500, damping: 35 }} />
               )}
-              <span className="relative">{r}</span>
+              <span className="relative">{t.dashboard.ranges[r] ?? r}</span>
             </button>
           ))}
         </div>
@@ -154,9 +158,9 @@ export function DashboardMock() {
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.08, delayChildren: 0.9 } } }}
       >
-        {ACCOUNTS.map((a) => (
+        {accounts.map((a, i) => (
           <motion.li
-            key={a.name}
+            key={i}
             variants={{ hidden: { opacity: 0, x: -12 }, show: { opacity: 1, x: 0, transition: { duration: 0.5, ease } } }}
             className="flex items-center gap-3 py-2.5"
           >

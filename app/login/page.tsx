@@ -2,10 +2,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { AuthShell, AuthTitle, AuthSpinner, GoogleButton } from '@/components/auth-shell'
+import { useI18n } from '@/lib/i18n/client'
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.fiscit.com'
 
 export default function LoginPage() {
+  const { t } = useI18n()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -19,15 +21,11 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search)
     const err = params.get('error')
     if (err) {
-      const messages: Record<string, string> = {
-        google_auth_failed: 'Google sign in failed. Please try again.',
-        google_no_email: 'No email found in your Google account.',
-        account_creation_failed: 'Failed to create account. Please try again.',
-      }
-      setError(messages[err] || 'An error occurred. Please try again.')
+      setError(t.login.urlErrors[err] || t.login.unknownError)
       // Clean URL
       window.history.replaceState({}, '', '/login')
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, on arrival
   }, [])
 
   useEffect(() => {
@@ -59,11 +57,11 @@ export default function LoginPage() {
         // redirectTo is either /onboarding or the app's /sso URL with a handoff token
         window.location.href = data.redirectTo || '/onboarding'
       } else {
-        setError(data.error || 'Login failed')
+        setError(data.error || t.login.failed)
         if (data.needsVerification) setNeedsVerification(true)
       }
     } catch {
-      setError('Network error. Please try again.')
+      setError(t.auth.networkError)
     } finally {
       setLoading(false)
     }
@@ -73,13 +71,13 @@ export default function LoginPage() {
 
   return (
     <AuthShell>
-      <title>Fiscit — Sign in</title>
-      <AuthTitle sub="Sign in to see where your money stands.">
-        Welcome <em>back.</em>
+      <title>{t.login.title}</title>
+      <AuthTitle sub={t.login.sub}>
+        {t.login.heading((s) => <em>{s}</em>)}
       </AuthTitle>
 
-      <GoogleButton label="Continue with Google" />
-      <div className="auth-divider">or</div>
+      <GoogleButton label={t.login.google} />
+      <div className="auth-divider">{t.auth.or}</div>
 
       {error && <div className="auth-error" role="alert">{error}</div>}
 
@@ -92,27 +90,27 @@ export default function LoginPage() {
           })
           if (res.ok) setResendSent(true)
         }}>
-          Resend verification email
+          {t.login.resend}
         </button>
       )}
-      {resendSent && <div className="auth-ok">Verification email sent! Check your inbox.</div>}
+      {resendSent && <div className="auth-ok">{t.login.resendSent}</div>}
 
       <form onSubmit={handleSubmit} style={{ marginTop: error || needsVerification ? 18 : 0 }}>
         <label className="auth-field">
-          <span>Email</span>
+          <span>{t.auth.email}</span>
           <input
             id="email"
             name="email"
             type="email"
             required
             autoComplete="email"
-            placeholder="you@example.com"
+            placeholder={t.auth.emailPlaceholder}
             value={email}
             onChange={e => setEmail(e.target.value)}
           />
         </label>
         <label className="auth-field">
-          <span>Password</span>
+          <span>{t.auth.password}</span>
           <input
             id="password"
             name="password"
@@ -124,16 +122,16 @@ export default function LoginPage() {
             onChange={e => setPassword(e.target.value)}
           />
         </label>
-        <div className="auth-forgot"><Link href="/forgot" className="auth-link">Forgot password?</Link></div>
+        <div className="auth-forgot"><Link href="/forgot" className="auth-link">{t.login.forgot}</Link></div>
         <button type="submit" className="auth-btn" disabled={loading}>
-          {loading ? 'Signing in…' : 'Sign in'}
+          {loading ? t.login.submitting : t.login.submit}
         </button>
       </form>
 
       <div className="auth-foot">
-        No account? <Link href="/register">Create one</Link>
+        {t.login.noAccount} <Link href="/register">{t.login.createOne}</Link>
       </div>
-      <p className="auth-legal"><Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link></p>
+      <p className="auth-legal"><Link href="/privacy">{t.common.privacy}</Link> · <Link href="/terms">{t.common.terms}</Link></p>
     </AuthShell>
   )
 }

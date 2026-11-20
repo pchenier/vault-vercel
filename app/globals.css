@@ -90,7 +90,7 @@ body {
 .auth{position:relative;min-height:100svh;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-geist-sans),system-ui,sans-serif}
 .auth-center{display:grid;place-items:center}
 .auth-glow{position:absolute;top:-220px;left:50%;width:820px;height:520px;margin-left:-410px;border-radius:50%;background:rgba(184,245,102,.09);filter:blur(120px);pointer-events:none}
-.auth-top{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:20px 20px 0}
+.auth-top{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between}
 .auth-layout{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:32px 16px 48px;display:grid;gap:56px;align-items:center;min-height:calc(100svh - 70px)}
 @media(min-width:960px){.auth-layout{grid-template-columns:1fr 440px;padding:24px 20px 64px}}
 .auth-brand{display:none}
@@ -192,7 +192,7 @@ body {
 /* ═══════════ Legal pages (/privacy, /terms) ═══════════ */
 .legal{position:relative;min-height:100svh;overflow-x:clip;background:var(--bg);color:var(--text);font-family:var(--font-geist-sans),system-ui,sans-serif}
 .legal-top{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:20px;display:flex;align-items:center;justify-content:space-between}
-.legal-top nav{display:flex;gap:4px}
+.legal-top nav{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:4px}
 .legal-top nav a{padding:6px 12px;border-radius:8px;color:var(--muted);font-size:.88rem;text-decoration:none;transition:color .15s}
 .legal-top nav a:hover{color:var(--text)}
 .legal-hero{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:56px 20px 40px}
@@ -221,7 +221,7 @@ body {
 .legal-article strong{color:var(--text);font-weight:600}
 .legal-article a,.legal-intro a{color:var(--lime);text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(184,245,102,.4)}
 .legal-foot{max-width:1100px;margin:0 auto;padding:28px 20px 40px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;color:var(--dim);font-size:.88rem}
-.legal-foot div{display:flex;gap:20px}
+.legal-foot>div{display:flex;flex-wrap:wrap;align-items:center;gap:20px}
 .legal-foot a{color:var(--muted);text-decoration:none}
 .legal-foot a:hover{color:var(--text)}
 .auth-legal{margin-top:14px;text-align:center;color:var(--dim);font-size:.78rem;line-height:1.6}

@@ -3,15 +3,17 @@
 import { motion, useMotionValueEvent, useScroll } from "motion/react";
 import { useState } from "react";
 import { Logo } from "./logo";
+import { LangSwitch } from "./lang-switch";
 import { SIGNIN_URL, SIGNUP_URL } from "@/lib/links";
-
-const LINKS = [
-  { href: "#how", label: "How it works" },
-  { href: "#features", label: "Features" },
-  { href: "#pricing", label: "Pricing" },
-];
+import { useI18n } from "@/lib/i18n/client";
 
 export function Nav() {
+  const { t } = useI18n();
+  const links = [
+    { href: "#how", label: t.nav.how },
+    { href: "#features", label: t.nav.features },
+    { href: "#pricing", label: t.nav.pricing },
+  ];
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
   useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 24));
@@ -28,11 +30,11 @@ export function Nav() {
           scrolled ? "border-line bg-bg/75 backdrop-blur-xl" : "border-transparent bg-transparent"
         }`}
       >
-        <a href="/" aria-label="Fiscit home">
+        <a href="/" aria-label={t.common.homeAria}>
           <Logo />
         </a>
         <ul className="hidden items-center gap-1 md:flex">
-          {LINKS.map((l) => (
+          {links.map((l) => (
             <li key={l.href}>
               <a
                 href={l.href}
@@ -44,14 +46,15 @@ export function Nav() {
           ))}
         </ul>
         <div className="flex items-center gap-2">
-          <a href={SIGNIN_URL} className="rounded-lg px-3 py-1.5 text-sm text-muted transition-colors hover:text-text">
-            Sign in
+          <LangSwitch />
+          <a href={SIGNIN_URL} className="hidden rounded-lg px-3 py-1.5 text-sm text-muted transition-colors hover:text-text min-[440px]:inline">
+            {t.nav.signIn}
           </a>
           <a
             href={SIGNUP_URL}
             className="rounded-lg bg-lime px-3.5 py-1.5 text-sm font-semibold text-bg transition-transform hover:-translate-y-px active:translate-y-0"
           >
-            Start free
+            {t.nav.startFree}
           </a>
         </div>
       </nav>

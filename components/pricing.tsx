@@ -4,19 +4,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { SIGNUP_URL } from "@/lib/links";
+import { useI18n } from "@/lib/i18n/client";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-const INCLUDED = [
-  "Unlimited bank accounts",
-  "Wise, crypto and investment accounts",
-  "Automatic categorization (EN / FR)",
-  "Net worth and savings-rate tracking",
-  "Subscription detection",
-  "Monthly plain-language recaps",
-];
-
 export function Pricing() {
+  const { t } = useI18n();
   const [yearly, setYearly] = useState(true);
   const price = yearly ? 8 : 10;
 
@@ -24,18 +17,18 @@ export function Pricing() {
     <section id="pricing" className="relative scroll-mt-24 overflow-hidden px-4 py-28 sm:px-6">
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-[480px] w-[720px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime/[0.06] blur-[120px]" />
       <div className="relative mx-auto max-w-6xl text-center">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-lime">Pricing</p>
+        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-lime">{t.pricing.eyebrow}</p>
         <h2 className="text-[clamp(2rem,4.4vw,3.4rem)] font-semibold leading-[1.02] tracking-[-0.035em]">
-          One plan. Everything in it.
+          {t.pricing.title}
         </h2>
 
         <div className="mt-8 inline-flex rounded-xl border border-line bg-surface p-1 text-sm">
           {[
-            { k: false, label: "Monthly" },
-            { k: true, label: "Yearly · save 20%" },
+            { k: false, label: t.pricing.monthly },
+            { k: true, label: t.pricing.yearly },
           ].map((o) => (
             <button
-              key={o.label}
+              key={String(o.k)}
               onClick={() => setYearly(o.k)}
               className={`relative rounded-lg px-4 py-1.5 font-medium transition-colors ${yearly === o.k ? "text-bg" : "text-muted hover:text-text"}`}
             >
@@ -55,7 +48,7 @@ export function Pricing() {
           className="mx-auto mt-10 max-w-md rounded-3xl border border-line-strong bg-surface p-8 text-left"
         >
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-semibold text-muted">$</span>
+            {t.pricing.currencyFirst && <span className="text-2xl font-semibold text-muted">$</span>}
             <span className="relative inline-flex h-[4.5rem] overflow-hidden">
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span
@@ -70,12 +63,13 @@ export function Pricing() {
                 </motion.span>
               </AnimatePresence>
             </span>
-            <span className="text-muted">/ month</span>
+            {!t.pricing.currencyFirst && <span className="text-2xl font-semibold text-muted">$</span>}
+            <span className="text-muted">{t.pricing.perMonth}</span>
           </div>
-          <p className="mt-2 h-5 text-sm text-muted">{yearly ? "Billed $96 yearly" : "Billed monthly, cancel anytime"}</p>
+          <p className="mt-2 h-5 text-sm text-muted">{yearly ? t.pricing.billedYearly : t.pricing.billedMonthly}</p>
 
           <ul className="mt-8 space-y-3">
-            {INCLUDED.map((item, i) => (
+            {t.pricing.included.map((item, i) => (
               <motion.li
                 key={item}
                 initial={{ opacity: 0, x: -10 }}
@@ -96,9 +90,9 @@ export function Pricing() {
             href={SIGNUP_URL}
             className="mt-8 block rounded-xl bg-lime py-3 text-center font-semibold text-bg transition-transform hover:-translate-y-0.5"
           >
-            Start 14-day free trial
+            {t.pricing.cta}
           </a>
-          <p className="mt-3 text-center text-xs text-dim">No credit card required.</p>
+          <p className="mt-3 text-center text-xs text-dim">{t.pricing.noCard}</p>
         </motion.div>
       </div>
     </section>
