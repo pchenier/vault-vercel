@@ -58,7 +58,7 @@ const sections: LegalSection[] = [
         </ul>
         <p>
           <strong>Nous ne vendons jamais vos renseignements personnels, ne les louons jamais et n&rsquo;utilisons jamais vos données financières à des fins publicitaires.</strong>{" "}
-          Nous n&rsquo;utilisons pas vos données pour entraîner des modèles d&rsquo;intelligence artificielle de tiers.
+          Nous n&rsquo;utilisons pas vos données pour entraîner des modèles d&rsquo;intelligence artificielle, les nôtres ou ceux de tiers.
         </p>
       </>
     ),
@@ -74,6 +74,12 @@ const sections: LegalSection[] = [
           <li><strong>Vercel</strong> (fiscit.com) et <strong>Railway</strong> (app.fiscit.com et notre base de données) — hébergement et stockage.</li>
           <li><strong>Google</strong> — connexion et, si vous le connectez, Google Agenda.</li>
           <li><strong>Resend</strong> — envoie nos courriels (reçoit votre adresse courriel).</li>
+          <li><strong>Anthropic</strong> — seulement si vous utilisez l&rsquo;assistant financier&nbsp;: votre question, les messages
+          précédents de cette conversation et les éléments de vos données financières que l&rsquo;assistant consulte pour répondre (par
+          exemple soldes, transactions et catégories) sont transmis à l&rsquo;API d&rsquo;Anthropic pour rédiger la réponse. Anthropic
+          n&rsquo;utilise pas ces données pour entraîner ses modèles et les supprime dans un délai de 30&nbsp;jours (jusqu&rsquo;à 2&nbsp;ans
+          si elles sont signalées pour une violation de sa politique d&rsquo;utilisation). Fiscit ne conserve pas vos conversations&nbsp;:
+          elles restent dans l&rsquo;onglet de votre navigateur; nous comptons seulement le nombre de questions par jour.</li>
           <li><strong>Wise</strong> — seulement si vous le connectez, pour lire vos soldes.</li>
           <li><strong>SnapTrade</strong> — seulement si vous connectez un compte de courtage par son intermédiaire (p.&nbsp;ex. Wealthsimple); vous vous connectez à votre courtier sur la page de SnapTrade, qui nous transmet des données de compte en lecture seule.</li>
           <li><strong>Questrade</strong>, <strong>Interactive Brokers</strong> et <strong>Kraken</strong> — seulement si vous les connectez directement, pour lire les soldes et les avoirs.</li>

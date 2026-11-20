@@ -55,7 +55,7 @@ const sections: LegalSection[] = [
         </ul>
         <p>
           <strong>We never sell your personal information, never rent it, and never use your financial data for advertising.</strong> We do not
-          use your data to train third-party AI models.
+          use your data to train AI models, ours or anyone else&rsquo;s.
         </p>
       </>
     ),
@@ -71,6 +71,11 @@ const sections: LegalSection[] = [
           <li><strong>Vercel</strong> (fiscit.com) and <strong>Railway</strong> (app.fiscit.com and our database) — hosting and storage.</li>
           <li><strong>Google</strong> — sign-in and, if you connect it, Google Calendar.</li>
           <li><strong>Resend</strong> — sends our emails (receives your email address).</li>
+          <li><strong>Anthropic</strong> — only when you use the money assistant: your question, the earlier messages of that
+          conversation, and the parts of your financial data the assistant looks up to answer (for example balances, transactions and
+          categories) are sent to Anthropic&rsquo;s API to write the reply. Anthropic does not use this data to train its models and
+          deletes it within 30 days (up to 2 years if it is flagged for violating Anthropic&rsquo;s usage policy). Fiscit does not keep
+          your conversations: they stay in your browser tab; we only count questions per day.</li>
           <li><strong>Wise</strong> — only if you connect it, to read your balances.</li>
           <li><strong>SnapTrade</strong> — only if you connect a brokerage through it (e.g. Wealthsimple); you sign in to your broker on SnapTrade&rsquo;s page and it shares read-only account data with us.</li>
           <li><strong>Questrade</strong>, <strong>Interactive Brokers</strong> and <strong>Kraken</strong> — only if you connect them directly, to read balances and holdings.</li>
