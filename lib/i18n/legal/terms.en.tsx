@@ -83,11 +83,31 @@ const sections: LegalSection[] = [
     id: "pricing",
     title: "Pricing",
     body: (
-      <p>
-        Fiscit is currently free. If we introduce paid plans, we will show the price, any free trial and the billing terms clearly
-        before you are charged, you will never be charged without your explicit agreement, and you will be able to cancel at any
-        time with effect at the end of the current billing period.
-      </p>
+      <>
+        <p>
+          <strong>Free trial.</strong> Every new account gets 14 days free, with no payment card required. You are never charged
+          automatically when the trial ends: to keep using Fiscit, you choose a plan yourself.
+        </p>
+        <p>
+          <strong>Plans.</strong> Fiscit costs $10 per month, or $96 per year, in Canadian dollars, plus applicable taxes. The price,
+          the billing period and the total are shown before you confirm. Payments are processed by Stripe; Fiscit never receives
+          your full card number.
+        </p>
+        <p>
+          <strong>Renewal and cancellation.</strong> A plan renews automatically at the end of each period until you cancel. You can
+          cancel at any time from the Billing page (fiscit.com/billing); you keep access until the end of the period already paid,
+          and you are not charged again. Except where the law requires otherwise, payments already made are not refunded for the
+          unused part of a period.
+        </p>
+        <p>
+          <strong>Price changes.</strong> We will tell you by email at least 30 days before a price change applies to your plan, and
+          you can cancel before it takes effect.
+        </p>
+        <p>
+          <strong>Failed payments.</strong> If a payment fails, Stripe retries it for a short time and we ask you to update your
+          card; access may be suspended if payment still fails. Your data is kept, and access comes back once a plan is paid.
+        </p>
+      </>
     ),
   },
   {
@@ -165,7 +185,7 @@ export const termsEn: LegalDoc = {
   metaDescription: "The rules for using Fiscit.",
   title: "Terms of",
   accent: "service.",
-  updated: "October 25, 2026",
+  updated: "November 20, 2026",
   intro: (
     <p>
       The short version: Fiscit shows you your money but never moves it, it is not financial advice, you own your data, and you

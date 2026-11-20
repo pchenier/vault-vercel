@@ -55,7 +55,9 @@ export default function LoginPage() {
       const data = await res.json()
       if (data.ok) {
         // redirectTo is either /onboarding or the app's /sso URL with a handoff token
-        window.location.href = data.redirectTo || '/onboarding'
+        const back = new URLSearchParams(window.location.search).get('callbackUrl') || ''
+        // Only same-site paths ("/billing"), never another host ("//evil.com")
+        window.location.href = /^\/(?![/\\])/.test(back) ? back : (data.redirectTo || '/onboarding')
       } else {
         setError(data.error || t.login.failed)
         if (data.needsVerification) setNeedsVerification(true)

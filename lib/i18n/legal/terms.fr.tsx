@@ -88,12 +88,33 @@ const sections: LegalSection[] = [
     id: "pricing",
     title: "Tarifs",
     body: (
-      <p>
-        Fiscit est actuellement gratuit. Si nous introduisons des forfaits payants, nous afficherons clairement le prix, tout essai
-        gratuit et les modalités de facturation avant que des frais vous soient facturés; aucuns frais ne vous seront jamais facturés
-        sans votre consentement explicite, et vous pourrez annuler en tout temps, avec effet à la fin de la période de facturation en
-        cours.
-      </p>
+      <>
+        <p>
+          <strong>Essai gratuit.</strong> Chaque nouveau compte profite de 14&nbsp;jours gratuits, sans carte de paiement. Aucuns frais
+          ne vous sont facturés automatiquement à la fin de l&rsquo;essai&nbsp;: pour continuer d&rsquo;utiliser Fiscit, vous choisissez
+          vous-même un forfait.
+        </p>
+        <p>
+          <strong>Forfaits.</strong> Fiscit coûte 10&nbsp;$ par mois ou 96&nbsp;$ par année, en dollars canadiens, plus les taxes
+          applicables. Le prix, la période de facturation et le total sont affichés avant que vous confirmiez. Les paiements sont traités
+          par Stripe; Fiscit ne reçoit jamais votre numéro de carte complet.
+        </p>
+        <p>
+          <strong>Renouvellement et annulation.</strong> Un forfait se renouvelle automatiquement à la fin de chaque période jusqu&rsquo;à
+          ce que vous l&rsquo;annuliez. Vous pouvez annuler en tout temps depuis la page Facturation (fiscit.com/billing)&nbsp;; vous
+          gardez l&rsquo;accès jusqu&rsquo;à la fin de la période déjà payée et aucuns autres frais ne vous sont facturés. Sauf si la
+          loi l&rsquo;exige, les paiements déjà effectués ne sont pas remboursés pour la partie inutilisée d&rsquo;une période.
+        </p>
+        <p>
+          <strong>Changements de prix.</strong> Nous vous en aviserons par courriel au moins 30&nbsp;jours avant qu&rsquo;un changement
+          de prix s&rsquo;applique à votre forfait, et vous pourrez annuler avant son entrée en vigueur.
+        </p>
+        <p>
+          <strong>Paiements refusés.</strong> Si un paiement échoue, Stripe le tente de nouveau pendant une courte période et nous vous
+          demandons de mettre votre carte à jour; l&rsquo;accès peut être suspendu si le paiement échoue toujours. Vos données sont
+          conservées et l&rsquo;accès revient dès qu&rsquo;un forfait est payé.
+        </p>
+      </>
     ),
   },
   {
@@ -174,7 +195,7 @@ export const termsFr: LegalDoc = {
   metaDescription: "Les règles d’utilisation de Fiscit.",
   title: "Conditions",
   accent: "d’utilisation.",
-  updated: "25 octobre 2026",
+  updated: "20 novembre 2026",
   intro: (
     <p>
       En bref&nbsp;: Fiscit vous montre votre argent, mais ne le déplace jamais; ce n&rsquo;est pas un conseil financier; vos données vous

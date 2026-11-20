@@ -74,6 +74,7 @@ const sections: LegalSection[] = [
           <li><strong>Vercel</strong> (fiscit.com) et <strong>Railway</strong> (app.fiscit.com et notre base de données) — hébergement et stockage.</li>
           <li><strong>Google</strong> — connexion et, si vous le connectez, Google Agenda.</li>
           <li><strong>Resend</strong> — envoie nos courriels (reçoit votre adresse courriel).</li>
+          <li><strong>Stripe</strong> — seulement si vous vous abonnez&nbsp;: traite les paiements et conserve votre carte et vos coordonnées de facturation. Vous saisissez votre carte sur la page de Stripe; Fiscit reçoit votre courriel, votre forfait, l&rsquo;état de votre abonnement et sa date de renouvellement, jamais votre numéro de carte complet.</li>
           <li><strong>Wise</strong> — seulement si vous le connectez, pour lire vos soldes.</li>
           <li><strong>SnapTrade</strong> — seulement si vous connectez un compte de courtage par son intermédiaire (p.&nbsp;ex. Wealthsimple); vous vous connectez à votre courtier sur la page de SnapTrade, qui nous transmet des données de compte en lecture seule.</li>
           <li><strong>Questrade</strong>, <strong>Interactive Brokers</strong> et <strong>Kraken</strong> — seulement si vous les connectez directement, pour lire les soldes et les avoirs.</li>
