@@ -99,6 +99,27 @@ export function access(u: BillingUser): Access {
   return { ...base, ...trial, state: 'expired' }
 }
 
+/** Drop Stripe ids that don't exist under the current key (e.g. sandbox ids left on a
+ *  row after switching to live mode), so the person isn't stuck "subscribed" to a test
+ *  subscription and gets a fresh customer at checkout. Returns the row as it now is. */
+export async function reconcile(u: BillingUser): Promise<BillingUser> {
+  if (!u.stripe_customer_id || !process.env.STRIPE_SECRET_KEY) return u
+  try {
+    const c = await stripe().customers.retrieve(u.stripe_customer_id)
+    if (!('deleted' in c && c.deleted)) return u
+  } catch (e) {
+    if (!(e instanceof Stripe.errors.StripeError) || e.code !== 'resource_missing') return u
+  }
+  await run(
+    `UPDATE users SET stripe_customer_id = NULL, stripe_subscription_id = NULL, subscription_status = NULL,
+            subscription_plan = NULL, subscription_period_end = NULL, subscription_cancel_at_period_end = false
+     WHERE id = $1 AND stripe_customer_id = $2`,
+    [u.id, u.stripe_customer_id]
+  )
+  console.log(`Billing: cleared unknown Stripe customer for user ${u.id}`)
+  return (await billingUser(u.id)) ?? u
+}
+
 /** A Stripe customer for this person, created once and kept on the users row. */
 export async function ensureCustomer(u: BillingUser): Promise<string> {
   if (u.stripe_customer_id) return u.stripe_customer_id

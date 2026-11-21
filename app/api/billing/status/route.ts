@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { COOKIE_NAME } from '@/lib/auth-jwt'
 import { verifySession } from '@/lib/session'
-import { access, billingUser, PRICES_CAD, TRIAL_DAYS } from '@/lib/billing'
+import { access, billingUser, PRICES_CAD, reconcile, TRIAL_DAYS } from '@/lib/billing'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const session = await verifySession((await cookies()).get(COOKIE_NAME)?.value)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const user = await billingUser(Number(session.sub))
+  const user = await billingUser(Number(session.sub)).then(u => u && reconcile(u))
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return NextResponse.json({
     ...access(user),

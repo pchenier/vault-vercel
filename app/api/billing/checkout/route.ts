@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { COOKIE_NAME } from '@/lib/auth-jwt'
 import { verifySession } from '@/lib/session'
 import { langFromRequest } from '@/lib/i18n/server'
-import { billingUser, ensureCustomer, isPaying, priceId, stripe, type Plan } from '@/lib/billing'
+import { billingUser, ensureCustomer, isPaying, priceId, reconcile, stripe, type Plan } from '@/lib/billing'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const price = priceId(plan as Plan)
   if (!price || !process.env.STRIPE_SECRET_KEY) return NextResponse.json({ error: 'Billing is not configured yet.' }, { status: 503 })
 
-  const user = await billingUser(Number(session.sub))
+  const user = await billingUser(Number(session.sub)).then(u => u && reconcile(u))
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   // One subscription per person: plan changes go through the customer portal
   if (isPaying(user)) return NextResponse.json({ error: 'already_subscribed' }, { status: 409 })
