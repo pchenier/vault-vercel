@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { newOAuthState } from '@/lib/oauth-state'
 
 const SCOPES = [
@@ -7,7 +7,7 @@ const SCOPES = [
   'profile',
 ].join(' ')
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://fiscit.com'
   const redirectUri = `${baseUrl}/api/auth/google-signin/callback`
 
@@ -21,6 +21,11 @@ export async function GET() {
   })
   const response = NextResponse.redirect('https://accounts.google.com/o/oauth2/v2/auth')
   params.set('state', newOAuthState(response))
+  // Where to land after sign-in (e.g. /billing); same-site paths only
+  const next = request.nextUrl.searchParams.get('next') || ''
+  if (/^\/(?![/\\])/.test(next)) {
+    response.cookies.set('oauth_next', next, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 600, path: '/api/auth' })
+  }
   response.headers.set('Location', `https://accounts.google.com/o/oauth2/v2/auth?${params}`)
   return response
 }

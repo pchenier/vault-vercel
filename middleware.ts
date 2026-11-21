@@ -5,7 +5,7 @@ import { verifyToken, COOKIE_NAME } from '@/lib/auth-jwt'
 // Pages that need a session. Everything else is public, so a mistyped URL gets the
 // 404 page instead of a sign-in redirect. (Data is protected by the API routes, which
 // all check the session themselves.)
-const PROTECTED_PATHS = ['/import', '/billing']
+const PROTECTED_PATHS = ['/import']
 
 const TRUSTED_ORIGINS = new Set(['https://fiscit.com', 'https://www.fiscit.com'])
 

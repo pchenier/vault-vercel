@@ -65,7 +65,13 @@ export default function BillingPage() {
     const wanted = params.get('plan')
     let tries = 0
     const load = async () => {
-      const s: Status = await fetch('/api/billing/status', { credentials: 'include' }).then(r => r.json())
+      // Signed out: sign in, then come back here (with ?plan= kept)
+      const res = await fetch('/api/billing/status', { credentials: 'include' })
+      if (res.status === 401) {
+        window.location.href = `/login?callbackUrl=${encodeURIComponent('/billing' + window.location.search)}`
+        return
+      }
+      const s: Status = await res.json()
       setStatus(s)
       // After checkout the webhook may land a moment later: poll briefly
       if (isSuccess && s.state !== 'subscribed' && s.state !== 'comped' && tries++ < 8) setTimeout(load, 1500)

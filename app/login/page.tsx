@@ -6,6 +6,12 @@ import { useI18n } from '@/lib/i18n/client'
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.fiscit.com'
 
+// Only same-site paths ("/billing"), never another host ("//evil.com")
+function safeCallback(): string {
+  const back = new URLSearchParams(window.location.search).get('callbackUrl') || ''
+  return /^\/(?![/\\])/.test(back) ? back : ''
+}
+
 export default function LoginPage() {
   const { t } = useI18n()
   const [email, setEmail] = useState('')
@@ -29,12 +35,13 @@ export default function LoginPage() {
   }, [])
 
   useEffect(() => {
-    // Auto-redirect if already logged in
+    // Auto-redirect if already logged in (back to the page that sent us here, if any)
+    const back = safeCallback()
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (data.user && data.token) {
-          window.location.href = data.user.onboarded
+          window.location.href = back ? back : data.user.onboarded
             ? `${DASHBOARD_URL}/sso?token=${encodeURIComponent(data.token)}`
             : '/onboarding'
         } else setChecking(false)
@@ -55,9 +62,7 @@ export default function LoginPage() {
       const data = await res.json()
       if (data.ok) {
         // redirectTo is either /onboarding or the app's /sso URL with a handoff token
-        const back = new URLSearchParams(window.location.search).get('callbackUrl') || ''
-        // Only same-site paths ("/billing"), never another host ("//evil.com")
-        window.location.href = /^\/(?![/\\])/.test(back) ? back : (data.redirectTo || '/onboarding')
+        window.location.href = safeCallback() || data.redirectTo || '/onboarding'
       } else {
         setError(data.error || t.login.failed)
         if (data.needsVerification) setNeedsVerification(true)
@@ -78,7 +83,7 @@ export default function LoginPage() {
         {t.login.heading((s) => <em>{s}</em>)}
       </AuthTitle>
 
-      <GoogleButton label={t.login.google} />
+      <GoogleButton label={t.login.google} next={safeCallback()} />
       <div className="auth-divider">{t.auth.or}</div>
 
       {error && <div className="auth-error" role="alert">{error}</div>}

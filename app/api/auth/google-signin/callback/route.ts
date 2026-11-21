@@ -120,9 +120,14 @@ export async function GET(request: NextRequest) {
   // Sign JWT and set cookie
   const tv = (await queryOne<{ token_version: number }>('SELECT token_version FROM users WHERE id = $1', [userId]))?.token_version ?? 0
   const token = signToken(String(userId), email, tv)
-  const response = creds?.plaid_token
-    ? NextResponse.redirect(appSsoUrl(String(userId), email, tv))
-    : NextResponse.redirect(`${baseUrl}/onboarding`)
+  // Back to the page that asked for sign-in (e.g. /billing), else the usual place
+  const next = request.cookies.get('oauth_next')?.value || ''
+  const response = /^\/(?![/\\])/.test(next)
+    ? NextResponse.redirect(`${baseUrl}${next}`)
+    : creds?.plaid_token
+      ? NextResponse.redirect(appSsoUrl(String(userId), email, tv))
+      : NextResponse.redirect(`${baseUrl}/onboarding`)
+  response.cookies.set('oauth_next', '', { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 0, path: '/api/auth' })
   response.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: true,
